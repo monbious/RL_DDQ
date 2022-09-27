@@ -78,6 +78,7 @@ class DialogManager:
         self.state_user = self.state_tracker.get_state_for_user()
 
         self.agent.add_nl_to_action(self.agent_action)  # add NL to Agent Dia_Act
+
         self.print_function(agent_action=self.agent_action['act_slot_response'])
 
         ########################################################################
@@ -146,7 +147,6 @@ class DialogManager:
         if agent_action:
             if dialog_config.run_mode == 0:
                 if self.agent.__class__.__name__ != 'AgentCmd':
-                    print('AgentCmd', dialog_config.run_mode)
                     print("Turn %d sys: %s" % (agent_action['turn'], agent_action['nl']))
             elif dialog_config.run_mode == 1:
                 if self.agent.__class__.__name__ != 'AgentCmd':

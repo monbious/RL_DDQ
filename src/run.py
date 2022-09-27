@@ -480,6 +480,7 @@ def run_episodes(count, status):
         agent.predict_mode = False
         dialog_manager.initialize_episode(True)
         episode_over = False
+
         while not episode_over:
             episode_over, reward = dialog_manager.next_turn(record_training_data_for_user=False)
             cumulative_reward += reward
@@ -556,6 +557,5 @@ def run_episodes(count, status):
         save_model(params['write_model_dir'], agt, float(successes) / count, 
                    best_model['model'], best_res['epoch'], count)
         save_performance_records(params['write_model_dir'], agt, performance_records)
-
 
 run_episodes(num_episodes, status)
