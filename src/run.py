@@ -476,10 +476,10 @@ def run_episodes(count, status):
     for episode in range(count):
 
         # print("Episode: %s" % (episode))
+
         agent.predict_mode = False
         dialog_manager.initialize_episode(True)
         episode_over = False
-
         while not episode_over:
             episode_over, reward = dialog_manager.next_turn(record_training_data_for_user=False)
             cumulative_reward += reward

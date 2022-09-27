@@ -146,6 +146,7 @@ class DialogManager:
         if agent_action:
             if dialog_config.run_mode == 0:
                 if self.agent.__class__.__name__ != 'AgentCmd':
+                    print('AgentCmd', dialog_config.run_mode)
                     print("Turn %d sys: %s" % (agent_action['turn'], agent_action['nl']))
             elif dialog_config.run_mode == 1:
                 if self.agent.__class__.__name__ != 'AgentCmd':

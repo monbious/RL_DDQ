@@ -6,9 +6,9 @@ import torch.optim as optim
 from torch.autograd import Variable
 
 
-class DQN(nn.Module):
+class DQNZ(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
-        super(DQN, self).__init__()
+        super(DQNZ, self).__init__()
 
         self.input_size = input_size
         self.hidden_size = hidden_size

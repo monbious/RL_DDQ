@@ -12,7 +12,7 @@ from collections import namedtuple, deque
 from src.deep_dialog import dialog_config
 
 from .agent import Agent
-from src.deep_dialog.qlearning import DQN
+from src.deep_dialog.qlearning import DQNZ
 
 import torch
 import torch.optim as optim
@@ -54,8 +54,8 @@ class AgentDQNZ(Agent):
         self.max_turn = params['max_turn'] + 5
         self.state_dimension = 2 * self.act_cardinality + 7 * self.slot_cardinality + 3 + self.max_turn
 
-        self.dqn = DQN(self.state_dimension, self.hidden_size, self.num_actions).to(DEVICE)
-        self.target_dqn = DQN(self.state_dimension, self.hidden_size, self.num_actions).to(DEVICE)
+        self.dqn = DQNZ(self.state_dimension, self.hidden_size, self.num_actions).to(DEVICE)
+        self.target_dqn = DQNZ(self.state_dimension, self.hidden_size, self.num_actions).to(DEVICE)
         self.target_dqn.load_state_dict(self.dqn.state_dict())
         self.target_dqn.eval()
 
