@@ -12,7 +12,7 @@ import torch
 
 from deep_dialog.dialog_system import DialogManager, text_to_dict
 from deep_dialog.agents import (AgentCmd, InformAgent, RequestAllAgent, RandomAgent, 
-                                EchoAgent, RequestBasicsAgent, AgentDQN, AgentSAC, AgentTD3, AgentDQNZ)
+                                EchoAgent, RequestBasicsAgent, AgentDQN, AgentSAC, AgentTD3)
 from deep_dialog.usersims import RuleSimulator, ModelBasedSimulator
 
 from deep_dialog import dialog_config
@@ -226,8 +226,6 @@ elif agt == 7:
     agent = AgentSAC(movie_kb, act_set, slot_set, agent_params)
 elif agt == 9:
     agent = AgentTD3(movie_kb, act_set, slot_set, agent_params)
-elif agt == 10:
-    agent = AgentDQNZ(movie_kb, act_set, slot_set, agent_params)
 
 ################################################################################
 #    Add your agent here
