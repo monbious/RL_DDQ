@@ -4,7 +4,7 @@ Created on May 17, 2016
 @author: xiul, t-zalipt
 """
 
-from src.deep_dialog import dialog_config
+from deep_dialog import dialog_config
 
 class Agent:
     """ Prototype for all agent classes, defining the interface they must uphold """
