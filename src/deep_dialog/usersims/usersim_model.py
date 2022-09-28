@@ -3,7 +3,7 @@ import argparse, json, random, copy, sys
 import numpy as np
 from .user_model import SimulatorModel
 from collections import namedtuple, deque
-from src.deep_dialog import dialog_config
+from deep_dialog import dialog_config
 
 import torch
 import torch.nn.functional as F
