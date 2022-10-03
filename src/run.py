@@ -3,7 +3,6 @@ This should be a simple minimalist run file. It's only responsibility should be 
 (which agent, user simulator to use) and launch a dialog simulation.
 """
 import sys
-sys.path.append(sys.path[0].split('src')[0])
 import argparse, json, copy, os
 import pickle
 import numpy
@@ -205,6 +204,19 @@ agent_params['trained_model_path'] = params['trained_model_path']
 agent_params['warm_start'] = params['warm_start']
 agent_params['cmd_input_mode'] = params['cmd_input_mode']
 
+################################################################################
+#   Parameters for User Simulators
+################################################################################
+usersim_params = {}
+usersim_params['max_turn'] = max_turn
+usersim_params['slot_err_probability'] = params['slot_err_prob']
+usersim_params['slot_err_mode'] = params['slot_err_mode']
+usersim_params['intent_err_probability'] = params['intent_err_prob']
+usersim_params['simulator_run_mode'] = params['run_mode']
+usersim_params['simulator_act_level'] = params['act_level']
+usersim_params['learning_phase'] = params['learning_phase']
+usersim_params['hidden_size'] = params['dqn_hidden_size']
+
 # Manually set torch seed to ensure fail comparison.
 torch.manual_seed(params['torch_seed'])
 
@@ -227,7 +239,8 @@ elif agt == 7:
 elif agt == 9:
     agent = AgentTD3(movie_kb, act_set, slot_set, agent_params)
 elif agt == 10:
-    agent = AgentDQNZ(movie_kb, act_set, slot_set, agent_params)
+    merged_params = dict(agent_params, **usersim_params)
+    agent = AgentDQNZ(movie_kb, movie_dictionary, act_set, slot_set, goal_set, merged_params)
 
 ################################################################################
 #    Add your agent here
@@ -235,18 +248,7 @@ elif agt == 10:
 else:
     pass
 
-################################################################################
-#   Parameters for User Simulators
-################################################################################
-usersim_params = {}
-usersim_params['max_turn'] = max_turn
-usersim_params['slot_err_probability'] = params['slot_err_prob']
-usersim_params['slot_err_mode'] = params['slot_err_mode']
-usersim_params['intent_err_probability'] = params['intent_err_prob']
-usersim_params['simulator_run_mode'] = params['run_mode']
-usersim_params['simulator_act_level'] = params['act_level']
-usersim_params['learning_phase'] = params['learning_phase']
-usersim_params['hidden_size'] = params['dqn_hidden_size']
+
 
 if usr == 0:  # real user
     user_sim = RealUser(movie_dictionary, act_set, slot_set, goal_set, usersim_params)
@@ -254,9 +256,9 @@ elif usr == 1:
     user_sim = RuleSimulator(movie_dictionary, act_set, slot_set, goal_set, usersim_params)
     world_model = ModelBasedSimulator(movie_dictionary, act_set, slot_set, goal_set, usersim_params)
     agent.set_user_planning(world_model)
-# elif usr == 2:
-#     user_sim = ModelBasedSimulator(movie_dictionary, act_set, slot_set, goal_set, usersim_params)
-
+elif usr == 2:
+    user_sim = RuleSimulator(movie_dictionary, act_set, slot_set, goal_set, usersim_params)
+    world_model = agent
 ################################################################################
 #    Add your user simulator here
 ################################################################################
@@ -290,7 +292,7 @@ world_model.set_nlu_model(nlu_model)
 ################################################################################
 # Dialog Manager
 ################################################################################
-dialog_manager = DialogManager(agent, user_sim, world_model, act_set, slot_set, movie_kb)
+dialog_manager = DialogManager(agent, user_sim, world_model, act_set, slot_set, movie_kb, params)
 
 ################################################################################
 #   Run num_episodes Conversation Simulations

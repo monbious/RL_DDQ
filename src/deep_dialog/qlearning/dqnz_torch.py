@@ -1,55 +1,39 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-# import torch.nn.functional as F
+import torch.nn.functional as F
 
 from torch.autograd import Variable
 
 
 class DQNZ(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size):
+    def __init__(self, state_size, hidden_size, action_size, reward_size=1, qvalue_size=1, termination_size=1):
         super(DQNZ, self).__init__()
 
-        self.input_size = input_size
-        self.hidden_size = hidden_size
-        self.output_size = output_size
+        self.linear_i2h = nn.Linear(state_size, hidden_size)
 
-        self.linear_i2h = nn.Linear(self.input_size, self.hidden_size)
-        self.linear_h2o = nn.Linear(self.hidden_size, self.output_size)
+        self.linear_h2a = nn.Linear(hidden_size, action_size)
+        self.linear_h2r = nn.Linear(hidden_size, reward_size)
+        self.linear_h2v = nn.Linear(hidden_size, qvalue_size)
+        self.linear_h2t = nn.Linear(hidden_size, termination_size)
 
-    def forward(self, x):
-        x = torch.tanh(self.linear_i2h(x))
-        x = self.linear_h2o(x)
-        return x
+    def forward(self, s):
+        h = torch.tanh(self.linear_i2h(s))
 
-    def predict(self, x):
-        y = self.forward(x)
-        return torch.argmax(y, 1)
+        action = self.linear_h2a(h)
+        reward = self.linear_h2r(h)
+        qvalue = self.linear_h2v(h)
+        term = torch.sigmoid(self.linear_h2t(h))
 
+        return action, reward, qvalue, term
 
-class DQN2(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size):
-        super(DQN2, self).__init__()
+    def predict(self, s):
+        h = torch.tanh(self.linear_i2h(s))
 
-        self.linear1 = nn.Linear(self.input_size, self.hidden_size)
-        self.linear2 = nn.Linear(self.hidden_size, self.hidden_size)
-        self.linear3 = nn.Linear(self.hidden_size, self.output_size)
+        action = self.linear_h2a(h)
+        reward = self.linear_h2r(h)
+        qvalue = self.linear_h2v(h)
+        term = torch.sigmoid(self.linear_h2t(h))
 
-        self.linear4 = nn.Linear(self.input_size, self.hidden_size)
-        self.linear5 = nn.Linear(self.hidden_size, self.hidden_size)
-        self.linear6 = nn.Linear(self.hidden_size, self.output_size)
+        return torch.argmax(action, 1), reward, qvalue, term
 
-
-    def forward(self, x):
-        x1 = torch.tanh(self.linear1(x))
-        x1 = torch.tanh(self.linear2(x1))
-        x1 = self.linear3(x1)
-
-        x2 = torch.tanh(self.linear4(x))
-        x2 = torch.tanh(self.linear5(x2))
-        x2 = self.linear6(x2)
-        return x1, x2
-
-    def predict(self, x):
-        y1, y2 = self.forward(x)
-        return torch.argmax(torch.min(y1, y2), 1)

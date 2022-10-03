@@ -13,7 +13,7 @@ import copy
 class DialogManager:
     """ A dialog manager to mediate the interaction between an agent and a customer """
 
-    def __init__(self, agent, user, world_model, act_set, slot_set, movie_dictionary):
+    def __init__(self, agent, user, world_model, act_set, slot_set, movie_dictionary, params):
         self.agent = agent
         self.user = user
         self.world_model = world_model
@@ -23,6 +23,8 @@ class DialogManager:
         self.user_action = None
         self.reward = 0
         self.episode_over = False
+
+        self.params = params
 
 
         self.use_world_model = False
@@ -66,6 +68,8 @@ class DialogManager:
         #   CALL AGENT TO TAKE HER TURN
         ########################################################################
         self.state = self.state_tracker.get_state_for_agent()
+
+
         self.agent_action = self.agent.state_to_action(self.state)
 
         # TODO
@@ -115,7 +119,12 @@ class DialogManager:
         ########################################################################
 
         if record_training_data_for_user and not self.use_world_model:
-            self.world_model.register_experience_replay_tuple(self.state_user, self.agent.action,
+            if self.params['usr'] == 2:
+                self.world_model.register_experience_replay_tuple(self.state, self.agent_action, self.reward,
+                                                        self.state_tracker.get_state_for_agent(), self.episode_over,
+                                                        self.state_user, False)
+            else:
+                self.world_model.register_experience_replay_tuple(self.state_user, self.agent.action,
                                                               self.state_user_next, self.reward, self.episode_over,
                                                               self.user_action)
 

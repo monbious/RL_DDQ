@@ -25,13 +25,16 @@ Transition = namedtuple('Transition', ('state', 'action', 'reward', 'next_state'
 
 
 class AgentDQNZ(Agent):
-    def __init__(self, movie_dict=None, act_set=None, slot_set=None, params=None):
+    def __init__(self, movie_dict=None, movie_dictionary=None, act_set=None, slot_set=None, start_set=None, params=None):
         self.movie_dict = movie_dict
+        self.movie_dictionary = movie_dictionary
         self.act_set = act_set
         self.slot_set = slot_set
+        self.start_set = start_set
         self.act_cardinality = len(act_set.keys())
         self.slot_cardinality = len(slot_set.keys())
 
+        self.feasible_actions_users = dialog_config.feasible_actions_users
         self.feasible_actions = dialog_config.feasible_actions
         self.num_actions = len(self.feasible_actions)
 
@@ -54,12 +57,19 @@ class AgentDQNZ(Agent):
         self.max_turn = params['max_turn'] + 5
         self.state_dimension = 2 * self.act_cardinality + 7 * self.slot_cardinality + 3 + self.max_turn
 
-        self.dqn = DQNZ(self.state_dimension, self.hidden_size, self.num_actions).to(DEVICE)
-        self.target_dqn = DQNZ(self.state_dimension, self.hidden_size, self.num_actions).to(DEVICE)
-        self.target_dqn.load_state_dict(self.dqn.state_dict())
-        self.target_dqn.eval()
+        self.slot_err_probability = params['slot_err_probability']
+        self.slot_err_mode = params['slot_err_mode']
+        self.intent_err_probability = params['intent_err_probability']
+        self.simulator_run_mode = params['simulator_run_mode']
+        self.simulator_act_level = params['simulator_act_level']
+        self.learning_phase = params['learning_phase']
 
-        self.optimizer = optim.RMSprop(self.dqn.parameters(), lr=1e-3)
+        self.dqnz = DQNZ(self.state_dimension, self.hidden_size, self.num_actions).to(DEVICE)
+        self.target_dqnz = DQNZ(self.state_dimension, self.hidden_size, self.num_actions).to(DEVICE)
+        self.target_dqnz.load_state_dict(self.dqnz.state_dict())
+        self.target_dqnz.eval()
+
+        self.optimizer = optim.RMSprop(self.dqnz.parameters(), lr=1e-3)
 
         self.cur_bellman_err = 0
 
@@ -76,11 +86,33 @@ class AgentDQNZ(Agent):
         self.phase = 0
         self.request_set = ['moviename', 'starttime', 'city', 'date', 'theater', 'numberofpeople']
 
+        self.state = {}
+        self.state['history_slots'] = {}
+        self.state['inform_slots'] = {}
+        self.state['request_slots'] = {}
+        self.state['rest_slots'] = []
+        self.state['turn'] = 0
+
+        self.episode_over = False
+        self.dialog_status = dialog_config.NO_OUTCOME_YET
+
+        self.goal = self._sample_goal(self.start_set)
+        self.goal['request_slots']['ticket'] = 'UNK'
+        self.constraint_check = dialog_config.CONSTRAINT_CHECK_FAILURE
+
+        # sample first action
+        user_action = self._sample_action()
+        assert (self.episode_over != 1), ' but we just started'
+        return user_action
+
+
     def state_to_action(self, state):
         """ DQN: Input state, output action """
         # self.state['turn'] += 2
         self.representation = self.prepare_state_representation(state)
         self.action = self.run_policy(self.representation)
+        # TODO
+
         if self.warm_start == 1:
             act_slot_response = copy.deepcopy(self.feasible_actions[self.action])
         else:
@@ -222,7 +254,7 @@ class AgentDQNZ(Agent):
         """ Return action from DQN"""
 
         with torch.no_grad():
-            action = self.dqn.predict(torch.FloatTensor(state_representation))
+            action, _, _, _ = self.dqnz.predict(torch.FloatTensor(state_representation))
         return action
 
     def action_index(self, act_slot_response):
@@ -281,9 +313,13 @@ class AgentDQNZ(Agent):
                 self.optimizer.zero_grad()
                 batch = self.sample_from_buffer(batch_size)
 
-                state_value = self.dqn(torch.FloatTensor(batch.state)).gather(1, torch.tensor(batch.action, dtype=torch.int64))
-                next_state_value, _ = self.target_dqn(torch.FloatTensor(batch.next_state)).max(1)
+                # TODO
+                action, _, _, _ = self.dqnz(torch.FloatTensor(batch.state))
+                state_value = action.gather(1, torch.tensor(batch.action, dtype=torch.int64))
+                next_action, _, _, _ = self.target_dqnz(torch.FloatTensor(batch.next_state))
+                next_state_value, _ = next_action.max(1)
                 next_state_value = next_state_value.unsqueeze(1)
+
                 term = np.asarray(batch.term, dtype=np.float32)
                 expected_value = torch.FloatTensor(batch.reward) + self.gamma * next_state_value * (
                     1 - torch.FloatTensor(term))
@@ -376,10 +412,132 @@ class AgentDQNZ(Agent):
         self.user_planning = user_planning
 
     def save(self, filename):
-        torch.save(self.dqn.state_dict(), filename)
+        torch.save(self.dqnz.state_dict(), filename)
 
     def load(self, filename):
-        self.dqn.load_state_dict(torch.load(filename))
+        self.dqnz.load_state_dict(torch.load(filename))
 
     def reset_dqn_target(self):
-        self.target_dqn.load_state_dict(self.dqn.state_dict())
+        self.target_dqnz.load_state_dict(self.dqnz.state_dict())
+
+    def next(self, s, a):
+        """
+        Provide
+        :param s: state representation from tracker
+        :param a: last action from agent
+        :return: next user action, termination and reward predicted by world model
+        """
+
+        self.state['turn'] += 2
+        if (self.max_turn > 0 and self.state['turn'] >= self.max_turn-1):
+            reward = - self.max_turn
+            term = True
+            self.state['request_slots'].clear()
+            self.state['inform_slots'].clear()
+            self.state['diaact'] = "closing"
+            response_action = {}
+            response_action['diaact'] = self.state['diaact']
+            response_action['inform_slots'] = self.state['inform_slots']
+            response_action['request_slots'] = self.state['request_slots']
+            response_action['turn'] = self.state['turn']
+            return response_action, term, reward
+
+        s = self.prepare_state_representation(s)
+
+        # g = self.prepare_user_goal_representation(self.sample_goal)
+        # s = np.hstack([s, g])
+        action, reward, qvalue, term = self.predict(torch.FloatTensor(s), torch.LongTensor(np.asarray(a)[:, None]))
+        action = action.item()
+        reward = reward.item()
+        term = term.item()
+        action = copy.deepcopy(self.feasible_actions_users[action])
+
+        if action['diaact'] == 'inform':
+            if len(action['inform_slots'].keys()) > 0:
+                slots = list(action['inform_slots'].keys())[0]
+                if slots in self.sample_goal['inform_slots'].keys():
+                    action['inform_slots'][slots] = self.sample_goal['inform_slots'][slots]
+                else:
+                    action['inform_slots'][slots] = dialog_config.I_DO_NOT_CARE
+
+        response_action = action
+
+        term = term > 0.5
+
+        if reward > 1:
+            reward = 2 * self.max_turn
+        elif reward < -1:
+            reward = -self.max_turn
+        else:
+            reward = -1
+
+        return response_action, term, reward
+
+    def predict(self, s, a):
+        return self.dqnz.predict(s)
+
+    def _sample_action(self):
+        """ randomly sample a start action based on user goal """
+
+        self.state['diaact'] = random.choice(list(dialog_config.start_dia_acts.keys()))
+
+        # "sample" informed slots
+        if len(self.goal['inform_slots']) > 0:
+            known_slot = random.choice(list(self.goal['inform_slots'].keys()))
+            self.state['inform_slots'][known_slot] = self.goal['inform_slots'][known_slot]
+
+            if 'moviename' in self.goal['inform_slots'].keys():  # 'moviename' must appear in the first user turn
+                self.state['inform_slots']['moviename'] = self.goal['inform_slots']['moviename']
+
+            for slot in self.goal['inform_slots'].keys():
+                if known_slot == slot or slot == 'moviename': continue
+                self.state['rest_slots'].append(slot)
+
+        self.state['rest_slots'].extend(self.goal['request_slots'].keys())
+
+        # "sample" a requested slot
+        request_slot_set = list(self.goal['request_slots'].keys())
+        request_slot_set.remove('ticket')
+        if len(request_slot_set) > 0:
+            request_slot = random.choice(request_slot_set)
+        else:
+            request_slot = 'ticket'
+        self.state['request_slots'][request_slot] = 'UNK'
+
+        if len(self.state['request_slots']) == 0:
+            self.state['diaact'] = 'inform'
+
+        if (self.state['diaact'] in ['thanks', 'closing']):
+            self.episode_over = True  # episode_over = True
+        else:
+            self.episode_over = False  # episode_over = False
+
+        sample_action = {}
+        sample_action['diaact'] = self.state['diaact']
+        sample_action['inform_slots'] = self.state['inform_slots']
+        sample_action['request_slots'] = self.state['request_slots']
+        sample_action['turn'] = self.state['turn']
+
+        self.add_nl_to_action(sample_action)
+        return sample_action
+
+    def _sample_goal(self, goal_set):
+        """ sample a user goal  """
+
+        self.sample_goal = random.choice(self.start_set[self.learning_phase])
+        return self.sample_goal
+
+    def prepare_user_goal_representation(self, user_goal):
+        """"""
+
+        request_slots_rep = np.zeros((1, self.slot_cardinality))
+        inform_slots_rep = np.zeros((1, self.slot_cardinality))
+        for s in user_goal['request_slots']:
+            s = s.strip()
+            request_slots_rep[0, self.slot_set[s]] = 1
+        for s in user_goal['inform_slots']:
+            s = s.strip()
+            inform_slots_rep[0, self.slot_set[s]] = 1
+        self.user_goal_representation = np.hstack([request_slots_rep, inform_slots_rep])
+
+        return self.user_goal_representation
