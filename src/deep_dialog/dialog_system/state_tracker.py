@@ -125,6 +125,7 @@ class StateTracker:
             ####################################################################
             #   Handles the act_slot response (with values needing to be filled)
             ####################################################################
+            # print("agent_action['act_slot_response']", agent_action)
             if agent_action['act_slot_response']:
                 response = copy.deepcopy(agent_action['act_slot_response'])
                 

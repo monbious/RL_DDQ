@@ -8,6 +8,8 @@ import json
 from . import StateTracker
 from deep_dialog import dialog_config
 import copy
+from deep_dialog.mcts.mcts_dqnz import MCTSPlayer
+import random
 
 
 class DialogManager:
@@ -61,6 +63,12 @@ class DialogManager:
 
         self.agent.initialize_episode()
 
+    def mcts_action(self):
+        player = MCTSPlayer(self.mcts_agent.mcts_state_to_action, self.mcts_state_tracker)
+        # TODO
+        self.mcts_agent_action = player.get_action(self.mcts_state)
+        return copy.deepcopy(self.mcts_agent_action)
+
     def next_turn(self, record_training_data=True, record_training_data_for_user=True):
         """ This function initiates each subsequent exchange between agent and user (agent first) """
 
@@ -68,11 +76,22 @@ class DialogManager:
         #   CALL AGENT TO TAKE HER TURN
         ########################################################################
         self.state = self.state_tracker.get_state_for_agent()
+        print("当前对话轮数: ", self.state['turn'])
 
-
-        self.agent_action = self.agent.state_to_action(self.state)
-
-        # TODO
+        if self.params['usr'] == 2 and random.random() > 0.3:
+            self.mcts_state = copy.deepcopy(self.state)
+            self.mcts_agent = copy.deepcopy(self.agent)
+            self.mcts_state_tracker = copy.deepcopy(self.state_tracker)
+            try:
+                self.agent_action = self.mcts_action()
+                print('simulated agent_action:', self.agent_action)
+                self.agent.action = self.agent.feasible_actions.index(self.agent_action['act_slot_response'])
+                print('与之对应的行为索引:', self.agent.action)
+            except Exception as e:
+                print(e)
+                self.agent_action = self.agent.state_to_action(self.state)
+        else:
+            self.agent_action = self.agent.state_to_action(self.state)
 
         ########################################################################
         #   Register AGENT action with the state_tracker

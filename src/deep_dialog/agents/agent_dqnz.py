@@ -105,13 +105,29 @@ class AgentDQNZ(Agent):
         assert (self.episode_over != 1), ' but we just started'
         return user_action
 
+    def mcts_state_to_action(self, mcts_state):
+        """ DQN: Input state, output action """
+        # self.state['turn'] += 2
+        self.mcts_representation = self.prepare_state_representation(mcts_state)
+        self.mcts_action, mcts_value, term = self.mcts_run_policy(self.mcts_representation)
+
+        if self.warm_start == 1:
+            act_slot_response = copy.deepcopy(self.feasible_actions[self.mcts_action])
+        else:
+            act_slot_response = copy.deepcopy(self.feasible_actions[self.mcts_action[0]])
+
+        mcts_action = {'act_slot_response': act_slot_response, 'act_slot_value_response': None}
+        if mcts_state['turn'] >= self.max_turn-1:
+            term = 1
+
+        return mcts_action, mcts_value, term
+
 
     def state_to_action(self, state):
         """ DQN: Input state, output action """
         # self.state['turn'] += 2
         self.representation = self.prepare_state_representation(state)
         self.action = self.run_policy(self.representation)
-        # TODO
 
         if self.warm_start == 1:
             act_slot_response = copy.deepcopy(self.feasible_actions[self.action])
@@ -215,6 +231,19 @@ class AgentDQNZ(Agent):
              agent_request_slots_rep, current_slots_rep, turn_rep, turn_onehot_rep, kb_binary_rep, kb_count_rep])
         return self.final_representation
 
+    def mcts_run_policy(self, mcts_representation):
+        """ epsilon-greedy policy """
+
+        if random.random() < self.epsilon:
+            return torch.IntTensor([random.randint(0, self.num_actions - 1)]), 0.1, 0.5
+        else:
+            if self.warm_start == 1:
+                if len(self.experience_replay_pool) > self.experience_replay_pool_size:
+                    self.warm_start = 2
+                return self.rule_policy(), 1.0, 0.5
+            else:
+                return self.mcts_DQN_policy(mcts_representation)
+
     def run_policy(self, representation):
         """ epsilon-greedy policy """
 
@@ -249,6 +278,13 @@ class AgentDQNZ(Agent):
             act_slot_response = {'diaact': "thanks", 'inform_slots': {}, 'request_slots': {}}
 
         return self.action_index(act_slot_response)
+
+    def mcts_DQN_policy(self, mcts_state_representation):
+        """ Return action from DQN"""
+
+        with torch.no_grad():
+            action, reward, qvalue, term = self.dqnz.predict(torch.FloatTensor(mcts_state_representation))
+        return action, qvalue, term
 
     def DQN_policy(self, state_representation):
         """ Return action from DQN"""
@@ -446,7 +482,11 @@ class AgentDQNZ(Agent):
 
         # g = self.prepare_user_goal_representation(self.sample_goal)
         # s = np.hstack([s, g])
-        action, reward, qvalue, term = self.predict(torch.FloatTensor(s), torch.LongTensor(np.asarray(a)[:, None]))
+        try:
+            action, reward, qvalue, term = self.predict(torch.FloatTensor(s), torch.LongTensor(np.asarray(a)[:, None]))
+        except Exception as e:
+            print(e)
+            action, reward, qvalue, term = self.predict(torch.FloatTensor(s), torch.LongTensor(np.asarray([a])[:, None]))
         action = action.item()
         reward = reward.item()
         term = term.item()
