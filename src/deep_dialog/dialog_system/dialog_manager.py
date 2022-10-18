@@ -5,6 +5,8 @@ Created on May 17, 2016
 """
 
 import json
+import pickle
+
 from . import StateTracker
 from deep_dialog import dialog_config
 import copy
@@ -27,7 +29,10 @@ class DialogManager:
         self.episode_over = False
 
         self.params = params
-
+        # 自己和自己对话
+        if self.params['usr'] == 2:
+            self.mcts_state_tracker = copy.deepcopy(self.state_tracker)
+            self.player = MCTSPlayer(self.agent.mcts_state_to_action, self.mcts_state_tracker)
 
         self.use_world_model = False
         self.running_user = self.user
@@ -64,10 +69,11 @@ class DialogManager:
         self.agent.initialize_episode()
 
     def mcts_action(self):
-        player = MCTSPlayer(self.mcts_agent.mcts_state_to_action, self.mcts_state_tracker)
+        # player = MCTSPlayer(self.agent.mcts_state_to_action, self.mcts_state_tracker)
         # TODO
-        self.mcts_agent_action = player.get_action(self.mcts_state)
-        return copy.deepcopy(self.mcts_agent_action)
+        self.player.mcts.update_backup_state_tracker(self.mcts_state_tracker)
+        self.mcts_agent_action = self.player.get_action(self.mcts_state)
+        return self.mcts_agent_action
 
     def next_turn(self, record_training_data=True, record_training_data_for_user=True):
         """ This function initiates each subsequent exchange between agent and user (agent first) """
@@ -76,20 +82,22 @@ class DialogManager:
         #   CALL AGENT TO TAKE HER TURN
         ########################################################################
         self.state = self.state_tracker.get_state_for_agent()
-        print("当前对话轮数: ", self.state['turn'])
+        # print("当前对话轮数: ", self.state['turn'])
 
         if self.params['usr'] == 2 and self.use_world_model and random.random() > 0.8:
             start_time = time.time()
-            self.mcts_state = copy.deepcopy(self.state)
-            self.mcts_agent = copy.deepcopy(self.agent)
-            self.mcts_state_tracker = copy.deepcopy(self.state_tracker)
+            # self.mcts_state = copy.deepcopy(self.state)
+            self.mcts_state = pickle.dumps(self.state)
+            # self.mcts_agent = copy.deepcopy(self.agent)
+            # self.mcts_state_tracker = copy.deepcopy(self.state_tracker)
+            self.mcts_state_tracker = pickle.dumps(self.state_tracker)
             copy_object = time.time()
             print(f'deepcopy 用时{(copy_object-start_time)*1000}ms')
             try:
                 self.agent_action = self.mcts_action()
-                print('simulated agent_action:', self.agent_action)
+                # print('simulated agent_action:', self.agent_action)
                 self.agent.action = self.agent.feasible_actions.index(self.agent_action['act_slot_response'])
-                print('与之对应的行为索引:', self.agent.action)
+                # print('与之对应的行为索引:', self.agent.action)
             except Exception as e:
                 print(e)
                 self.agent_action = self.agent.state_to_action(self.state)

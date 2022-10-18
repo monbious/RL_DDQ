@@ -2,6 +2,7 @@ import numpy as np
 import copy
 from deep_dialog import dialog_config
 import time
+import pickle
 
 
 def softmax(x):
@@ -96,9 +97,13 @@ class MCTS(object):
         self._root = TreeNode(None, 1.0)
         self._policy = policy_value_fn
         self._mcts_state_tracker = mcts_state_tracker
-        self._backup_state_tracker = copy.deepcopy(mcts_state_tracker)
+        self._backup_state_tracker = pickle.dumps(mcts_state_tracker)
         self._c_puct = c_puct
         self._n_playout = n_playout
+
+    def update_backup_state_tracker(self, mcts_state_tracker):
+        # self._mcts_state_tracker = pickle.loads(mcts_state_tracker)
+        self._backup_state_tracker = mcts_state_tracker
 
     def _playout(self, state):
         """Run a single playout from the root to the leaf, getting a value at the leaf and
@@ -108,7 +113,7 @@ class MCTS(object):
         state -- a copy of the state.
         """
         node = self._root
-        self._mcts_state_tracker = copy.deepcopy(self._backup_state_tracker)
+        self._mcts_state_tracker = pickle.loads(self._backup_state_tracker)
         while True:
             if node.is_leaf():
                 break
@@ -155,10 +160,12 @@ class MCTS(object):
             if (n+1)%100 == 0:
                 print("当前mc模拟次数", n+1)
             start_time = time.time()
-            state_copy = copy.deepcopy(state)
-            self._playout(state_copy)
+            # state_copy = copy.deepcopy(state)
+            # state_copy = pickle.dumps(state)
+            # 直接load
+            self._playout(pickle.loads(state))
             end_time = time.time()
-            print(f'一次mc用时{(end_time-start_time)*1000}ms')
+            print(f'mcts 用时{(end_time-start_time)*1000}ms')
 
         # calc the move probabilities based on the visit counts at the root node
         act_visits = [(act, node._n_visits) for act, node in self._root._children.items()]
@@ -205,13 +212,13 @@ class MCTSPlayer(object):
                 p=0.75 * probs + 0.25 * np.random.dirichlet(0.3 * np.ones(len(probs)))
             )
             # update the root node and reuse the search tree
-            # self.mcts.update_with_move(move)
+            self.mcts.update_with_move(move)
         else:
             # with the default temp=1e-3, it is almost equivalent
             # to choosing the move with the highest prob
             move = np.random.choice(acts, p=probs)
             # reset the root node
-            # self.mcts.update_with_move(-1)
+            self.mcts.update_with_move(-1)
             # location = board.move_to_location(move)
             # print("AI move: %d,%d\n" % (location[0], location[1]))
 
