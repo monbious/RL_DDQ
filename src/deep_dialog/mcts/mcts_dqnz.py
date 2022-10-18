@@ -1,6 +1,7 @@
 import numpy as np
 import copy
 from deep_dialog import dialog_config
+import time
 
 
 def softmax(x):
@@ -153,8 +154,11 @@ class MCTS(object):
         for n in range(self._n_playout):
             if (n+1)%100 == 0:
                 print("当前mc模拟次数", n+1)
+            start_time = time.time()
             state_copy = copy.deepcopy(state)
             self._playout(state_copy)
+            end_time = time.time()
+            print(f'一次mc用时{(end_time-start_time)*1000}ms')
 
         # calc the move probabilities based on the visit counts at the root node
         act_visits = [(act, node._n_visits) for act, node in self._root._children.items()]

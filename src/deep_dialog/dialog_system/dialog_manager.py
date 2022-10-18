@@ -9,7 +9,7 @@ from . import StateTracker
 from deep_dialog import dialog_config
 import copy
 from deep_dialog.mcts.mcts_dqnz import MCTSPlayer
-import random
+import random, time
 
 
 class DialogManager:
@@ -78,10 +78,13 @@ class DialogManager:
         self.state = self.state_tracker.get_state_for_agent()
         print("当前对话轮数: ", self.state['turn'])
 
-        if self.params['usr'] == 2 and random.random() > 0.3:
+        if self.params['usr'] == 2 and self.use_world_model and random.random() > 0.8:
+            start_time = time.time()
             self.mcts_state = copy.deepcopy(self.state)
             self.mcts_agent = copy.deepcopy(self.agent)
             self.mcts_state_tracker = copy.deepcopy(self.state_tracker)
+            copy_object = time.time()
+            print(f'deepcopy 用时{(copy_object-start_time)*1000}ms')
             try:
                 self.agent_action = self.mcts_action()
                 print('simulated agent_action:', self.agent_action)
