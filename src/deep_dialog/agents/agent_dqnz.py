@@ -485,7 +485,7 @@ class AgentDQNZ(Agent):
         try:
             action, reward, qvalue, term = self.predict(torch.FloatTensor(s), torch.LongTensor(np.asarray(a)[:, None]))
         except Exception as e:
-            print(e)
+            # print(e)
             action, reward, qvalue, term = self.predict(torch.FloatTensor(s), torch.LongTensor(np.asarray([a])[:, None]))
         action = action.item()
         reward = reward.item()

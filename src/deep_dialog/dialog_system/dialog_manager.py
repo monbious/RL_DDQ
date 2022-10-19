@@ -93,8 +93,8 @@ class DialogManager:
             self.mcts_state = os.path.join(current_dir, self.mcts_state)
             self.mcts_state_tracker = 'data/mcts_state_tracker.pkl'
             self.mcts_state_tracker = os.path.join(current_dir, self.mcts_state_tracker)
-            with open(self.mcts_state, 'wb') as f:
-                pickle.dump(self.state, f, pickle.HIGHEST_PROTOCOL)
+            with open(self.mcts_state_tracker, 'wb') as f:
+                # pickle.dump(self.state, f, pickle.HIGHEST_PROTOCOL)
                 pickle.dump(self.state_tracker, f, pickle.HIGHEST_PROTOCOL)
             # with open(self.mcts_state_tracker, 'wb') as f:
             #     pickle.dump(self.state_tracker, f)

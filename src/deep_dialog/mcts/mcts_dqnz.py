@@ -107,7 +107,7 @@ class MCTS(object):
         #     self._backup_state_tracker = pickle.load(f)
         self._backup_state_tracker = mcts_state_tracker
 
-    def _playout(self, state):
+    def _playout(self, state=None):
         """Run a single playout from the root to the leaf, getting a value at the leaf and
         propagating it back through its parents. State is modified in-place, so a copy must be
         provided.
@@ -129,7 +129,10 @@ class MCTS(object):
             # print("select:", action, node.get_value(5))
             action = eval(action_str)
             self._mcts_state_tracker.update(agent_action=action)
-            state = self._mcts_state_tracker.get_state_for_agent()
+
+        state = self._mcts_state_tracker.get_state_for_agent()
+        if state['turn'] > 44:
+            state['turn'] = self._suspend_turn
 
         # Evaluate the leaf using a network which outputs a list of (action, probability)
         # tuples p and also a score v in [-1, 1] for the current player.
@@ -166,18 +169,21 @@ class MCTS(object):
         the available actions and the corresponding probabilities
         """
         start_time = time.time()
+        with open(self._backup_state_tracker, 'rb') as f:
+            # state_copy = pickle.load(f)
+            self._mcts_state_tracker = pickle.load(f)
+            self._suspend_turn = self._mcts_state_tracker.turn_count
+
         for n in range(self._n_playout):
             if (n+1)%100 == 0:
                 print("当前mc模拟次数", n+1)
             # state_copy = copy.deepcopy(state)
             # state_copy = pickle.dumps(state)
             first_time = time.time()
-            with open(state, 'rb') as f:
-                state_copy = pickle.load(f)
-                self._mcts_state_tracker = pickle.load(f)
+
             second_time = time.time()
-            print(f'--load 耗时{(second_time-first_time)*1000}ms')
-            self._playout(state_copy)
+            # print(f'--load 耗时{(second_time-first_time)*1000}ms')
+            self._playout()
         end_time = time.time()
         print(f'mcts 用时{(end_time-start_time)*1000}ms')
 
