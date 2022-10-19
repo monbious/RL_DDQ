@@ -12,7 +12,9 @@ from deep_dialog import dialog_config
 import copy
 from deep_dialog.mcts.mcts_dqnz import MCTSPlayer
 import random, time
+import os
 
+current_dir = os.path.dirname(os.path.abspath(__file__))
 
 class DialogManager:
     """ A dialog manager to mediate the interaction between an agent and a customer """
@@ -86,11 +88,18 @@ class DialogManager:
 
         if self.params['usr'] == 2 and self.use_world_model and random.random() > 0.8:
             start_time = time.time()
-            # self.mcts_state = copy.deepcopy(self.state)
-            self.mcts_state = pickle.dumps(self.state)
-            # self.mcts_agent = copy.deepcopy(self.agent)
-            # self.mcts_state_tracker = copy.deepcopy(self.state_tracker)
-            self.mcts_state_tracker = pickle.dumps(self.state_tracker)
+
+            self.mcts_state = 'data/mcts_state.pkl'
+            self.mcts_state = os.path.join(current_dir, self.mcts_state)
+            self.mcts_state_tracker = 'data/mcts_state_tracker.pkl'
+            self.mcts_state_tracker = os.path.join(current_dir, self.mcts_state_tracker)
+            with open(self.mcts_state, 'wb') as f:
+                pickle.dump(self.state, f, pickle.HIGHEST_PROTOCOL)
+                pickle.dump(self.state_tracker, f, pickle.HIGHEST_PROTOCOL)
+            # with open(self.mcts_state_tracker, 'wb') as f:
+            #     pickle.dump(self.state_tracker, f)
+            # self.mcts_state = pickle.dumps(self.state)
+            # self.mcts_state_tracker = pickle.dumps(self.state_tracker)
             copy_object = time.time()
             print(f'deepcopy 用时{(copy_object-start_time)*1000}ms')
             try:

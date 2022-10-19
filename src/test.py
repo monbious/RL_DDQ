@@ -2,6 +2,7 @@ import sys
 import numpy as np
 import random
 import pickle
+import os
 
 def softmax(x):
     probs = np.exp(x - np.max(x))
@@ -53,3 +54,14 @@ def doSome():
 
 doSome()
 
+a = A()
+aa = a
+aa.name = 'june'
+print(a.name)
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+print(current_dir)
+fp = os.path.join(current_dir, './test.sh')
+print(fp)
+with open(fp, 'r') as f:
+    print(f.readline())

@@ -103,6 +103,8 @@ class MCTS(object):
 
     def update_backup_state_tracker(self, mcts_state_tracker):
         # self._mcts_state_tracker = pickle.loads(mcts_state_tracker)
+        # with open(mcts_state_tracker, 'rb') as f:
+        #     self._backup_state_tracker = pickle.load(f)
         self._backup_state_tracker = mcts_state_tracker
 
     def _playout(self, state):
@@ -113,7 +115,11 @@ class MCTS(object):
         state -- a copy of the state.
         """
         node = self._root
-        self._mcts_state_tracker = pickle.loads(self._backup_state_tracker)
+        first_time = time.time()
+        # with open(self._backup_state_tracker, 'rb') as f:
+        #     self._mcts_state_tracker = pickle.load(f)
+        second_time = time.time()
+        # print(f'--loads statetracker用时{(second_time-first_time)*1000}ms')
         while True:
             if node.is_leaf():
                 break
@@ -138,6 +144,9 @@ class MCTS(object):
         if term <= 0.5:
             node.expand([(action, leaf_value)])
 
+        third_time = time.time()
+        # print(f'--选择并扩展用时{(third_time-second_time)*1000}ms')
+
         # else:
         #     # for end state，return the "true" leaf_value
         #     if winner == -1:  # tie
@@ -156,16 +165,21 @@ class MCTS(object):
         Returns:
         the available actions and the corresponding probabilities
         """
+        start_time = time.time()
         for n in range(self._n_playout):
             if (n+1)%100 == 0:
                 print("当前mc模拟次数", n+1)
-            start_time = time.time()
             # state_copy = copy.deepcopy(state)
             # state_copy = pickle.dumps(state)
-            # 直接load
-            self._playout(pickle.loads(state))
-            end_time = time.time()
-            print(f'mcts 用时{(end_time-start_time)*1000}ms')
+            first_time = time.time()
+            with open(state, 'rb') as f:
+                state_copy = pickle.load(f)
+                self._mcts_state_tracker = pickle.load(f)
+            second_time = time.time()
+            print(f'--load 耗时{(second_time-first_time)*1000}ms')
+            self._playout(state_copy)
+        end_time = time.time()
+        print(f'mcts 用时{(end_time-start_time)*1000}ms')
 
         # calc the move probabilities based on the visit counts at the root node
         act_visits = [(act, node._n_visits) for act, node in self._root._children.items()]
