@@ -11,6 +11,10 @@ def softmax(x):
     probs /= np.sum(probs)
     return probs
 
+def get_action_by_index(action_index):
+    act_slot_response = copy.deepcopy(dialog_config.feasible_actions[action_index])
+
+    return {'act_slot_response': act_slot_response, 'act_slot_value_response': None}
 
 class TreeNode(object):
     """A node in the MCTS tree. Each node keeps track of its own value Q, prior probability P, and
@@ -30,10 +34,9 @@ class TreeNode(object):
         action_priors -- output from policy function - a list of tuples of actions
             and their prior probability according to the policy function.
         """
-        for action, prob in action_priors:
-            action_str = str(action)
-            if action_str not in self._children:
-                self._children[action_str] = TreeNode(self, prob)
+        for action_index, prob in action_priors:
+            if action_index not in self._children:
+                self._children[action_index] = TreeNode(self, prob)
                 # print("expand-action_str: ", action_str, prob)
 
     def select(self, c_puct):
@@ -119,32 +122,32 @@ class MCTS(object):
                 break
             if random.random() < 0.2:
                 state = temp_stracker.get_state_for_agent()
-                action, leaf_value, term = self._policy(state)
+                action, leaf_value, term, action_index = self._policy(state)
 
                 if term <= 0.5:
-                    node.expand([(action, leaf_value)])
-                    action_str, node = node.select(self._c_puct)
-                    action = eval(action_str)
+                    node.expand([(action_index, leaf_value)])
+                    action_index, node = node.select(self._c_puct)
+                    action = get_action_by_index(action_index)
                     temp_stracker.update(agent_action=action)
                 else:
                     break
             else:
                 if node.is_leaf():
                     state = temp_stracker.get_state_for_agent()
-                    action, leaf_value, term = self._policy(state)
+                    action, leaf_value, term, action_index = self._policy(state)
 
                     if term <= 0.5:
-                        node.expand([(action, leaf_value)])
-                        action_str, node = node.select(self._c_puct)
-                        action = eval(action_str)
+                        node.expand([(action_index, leaf_value)])
+                        action_index, node = node.select(self._c_puct)
+                        action = get_action_by_index(action_index)
                         temp_stracker.update(agent_action=action)
                     else:
                         break
                 else:
-                    action_str, node = node.select(self._c_puct)
+                    action_index, node = node.select(self._c_puct)
                     # state.do_move(action)
                     # print("select:", action, node.get_value(5))
-                    action = eval(action_str)
+                    action = get_action_by_index(action_index)
                     temp_stracker.update(agent_action=action)
 
         third_time = time.time()
@@ -162,17 +165,10 @@ class MCTS(object):
         the available actions and the corresponding probabilities
         """
         start_time = time.time()
-        # with open(self._backup_state_tracker, 'rb') as f:
-        #     # state_copy = pickle.load(f)
-        #     self._mcts_state_tracker = pickle.load(f)
-        #     self._suspend_turn = self._mcts_state_tracker.turn_count
+
         for n in range(self._n_playout):
-            temp_stracker = copy.deepcopy(mcts_state_tracker)
-            if (n+1)%100 == 0:
-                print("当前mc模拟次数", n+1)
-            # first_time = time.time()
-            # second_time = time.time()
-            # print(f'--load 耗时{(second_time-first_time)*1000}ms')
+            with open(mcts_state_tracker, 'rb') as f:
+                temp_stracker = pickle.load(f)
             self._playout(temp_stracker)
             del temp_stracker
         end_time = time.time()
@@ -234,7 +230,7 @@ class MCTSPlayer(object):
             # location = board.move_to_location(move)
             # print("AI move: %d,%d\n" % (location[0], location[1]))
 
-        return eval(move)
+        return get_action_by_index(move), move
 
         # sensible_moves = board.availables
         # # the pi vector returned by MCTS as in the alphaGo Zero paper

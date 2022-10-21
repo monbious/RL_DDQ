@@ -115,12 +115,13 @@ class AgentDQNZ(Agent):
             act_slot_response = copy.deepcopy(self.feasible_actions[self.mcts_action])
         else:
             act_slot_response = copy.deepcopy(self.feasible_actions[self.mcts_action[0]])
+            self.mcts_action = self.mcts_action[0]
 
         mcts_action = {'act_slot_response': act_slot_response, 'act_slot_value_response': None}
         if mcts_state['turn'] >= self.max_turn-1:
             term = 1
 
-        return mcts_action, mcts_value, term
+        return mcts_action, mcts_value, term, self.mcts_action
 
 
     def state_to_action(self, state):
