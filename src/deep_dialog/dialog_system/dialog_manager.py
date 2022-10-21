@@ -34,7 +34,7 @@ class DialogManager:
         # 自己和自己对话
         if self.params['usr'] == 2:
             self.mcts_state_tracker = copy.deepcopy(self.state_tracker)
-            self.player = MCTSPlayer(self.agent.mcts_state_to_action, self.mcts_state_tracker)
+            self.player = MCTSPlayer(self.agent.mcts_state_to_action)
 
         self.use_world_model = False
         self.running_user = self.user
@@ -46,6 +46,9 @@ class DialogManager:
         self.episode_over = False
 
         self.state_tracker.initialize_episode()
+        if self.params['usr'] == 2:
+            self.mcts_state_tracker.initialize_episode()
+
         self.running_user = self.user
         self.use_world_model = False
 
@@ -71,10 +74,7 @@ class DialogManager:
         self.agent.initialize_episode()
 
     def mcts_action(self):
-        # player = MCTSPlayer(self.agent.mcts_state_to_action, self.mcts_state_tracker)
-        # TODO
-        self.player.mcts.update_backup_state_tracker(self.mcts_state_tracker)
-        self.mcts_agent_action = self.player.get_action(self.mcts_state)
+        self.mcts_agent_action = self.player.get_action(self.mcts_state_tracker)
         return self.mcts_agent_action
 
     def next_turn(self, record_training_data=True, record_training_data_for_user=True):
@@ -86,22 +86,14 @@ class DialogManager:
         self.state = self.state_tracker.get_state_for_agent()
         # print("当前对话轮数: ", self.state['turn'])
 
-        if self.params['usr'] == 2 and self.use_world_model and random.random() > 0.8:
-            start_time = time.time()
-
-            self.mcts_state = 'data/mcts_state.pkl'
-            self.mcts_state = os.path.join(current_dir, self.mcts_state)
-            self.mcts_state_tracker = 'data/mcts_state_tracker.pkl'
-            self.mcts_state_tracker = os.path.join(current_dir, self.mcts_state_tracker)
-            with open(self.mcts_state_tracker, 'wb') as f:
-                # pickle.dump(self.state, f, pickle.HIGHEST_PROTOCOL)
-                pickle.dump(self.state_tracker, f, pickle.HIGHEST_PROTOCOL)
+        if self.params['usr'] == 2 and self.state['turn'] > 6 and self.state['turn'] < 13 and random.random() > 0.6:
+            # start_time = time.time()
+            # self.mcts_state_tracker = 'data/mcts_state_tracker.pkl'
+            # self.mcts_state_tracker = os.path.join(current_dir, self.mcts_state_tracker)
             # with open(self.mcts_state_tracker, 'wb') as f:
-            #     pickle.dump(self.state_tracker, f)
-            # self.mcts_state = pickle.dumps(self.state)
-            # self.mcts_state_tracker = pickle.dumps(self.state_tracker)
-            copy_object = time.time()
-            print(f'deepcopy 用时{(copy_object-start_time)*1000}ms')
+            #     pickle.dump(self.state_tracker, f, pickle.HIGHEST_PROTOCOL)
+            # copy_object = time.time()
+            # print(f'deepcopy 用时{(copy_object-start_time)*1000}ms')
             try:
                 self.agent_action = self.mcts_action()
                 # print('simulated agent_action:', self.agent_action)
@@ -117,6 +109,7 @@ class DialogManager:
         #   Register AGENT action with the state_tracker
         ########################################################################
         self.state_tracker.update(agent_action=self.agent_action)
+        self.mcts_state_tracker.update(agent_action=self.agent_action)
 
         self.state_user = self.state_tracker.get_state_for_user()
 
@@ -140,6 +133,7 @@ class DialogManager:
         ########################################################################
         if self.episode_over != True:
             self.state_tracker.update(user_action=self.user_action)
+            self.mcts_state_tracker.update(user_action=self.user_action)
             self.print_function(user_action=self.user_action)
 
         self.state_user_next = self.state_tracker.get_state_for_agent()

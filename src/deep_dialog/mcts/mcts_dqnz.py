@@ -3,6 +3,7 @@ import copy
 from deep_dialog import dialog_config
 import time
 import pickle
+import random
 
 
 def softmax(x):
@@ -86,7 +87,7 @@ class MCTS(object):
     """A simple implementation of Monte Carlo Tree Search.
     """
 
-    def __init__(self, policy_value_fn, mcts_state_tracker, c_puct=5, n_playout=10000):
+    def __init__(self, policy_value_fn, c_puct=5, n_playout=10000):
         """Arguments:
         policy_value_fn -- a function that takes in a board state and outputs a list of (action, probability)
             tuples and also a score in [-1, 1] (i.e. the expected value of the end game score from
@@ -96,18 +97,10 @@ class MCTS(object):
         """
         self._root = TreeNode(None, 1.0)
         self._policy = policy_value_fn
-        self._mcts_state_tracker = mcts_state_tracker
-        self._backup_state_tracker = pickle.dumps(mcts_state_tracker)
         self._c_puct = c_puct
         self._n_playout = n_playout
 
-    def update_backup_state_tracker(self, mcts_state_tracker):
-        # self._mcts_state_tracker = pickle.loads(mcts_state_tracker)
-        # with open(mcts_state_tracker, 'rb') as f:
-        #     self._backup_state_tracker = pickle.load(f)
-        self._backup_state_tracker = mcts_state_tracker
-
-    def _playout(self, state=None):
+    def _playout(self, temp_stracker):
         """Run a single playout from the root to the leaf, getting a value at the leaf and
         propagating it back through its parents. State is modified in-place, so a copy must be
         provided.
@@ -115,52 +108,52 @@ class MCTS(object):
         state -- a copy of the state.
         """
         node = self._root
-        first_time = time.time()
+
+        # first_time = time.time()
         # with open(self._backup_state_tracker, 'rb') as f:
         #     self._mcts_state_tracker = pickle.load(f)
-        second_time = time.time()
+        # second_time = time.time()
         # print(f'--loads statetracker用时{(second_time-first_time)*1000}ms')
         while True:
-            if node.is_leaf():
+            if temp_stracker.turn_count > 44:
                 break
-                # Greedily select next move.
-            action_str, node = node.select(self._c_puct)
-            # state.do_move(action)
-            # print("select:", action, node.get_value(5))
-            action = eval(action_str)
-            self._mcts_state_tracker.update(agent_action=action)
+            if random.random() < 0.2:
+                state = temp_stracker.get_state_for_agent()
+                action, leaf_value, term = self._policy(state)
 
-        state = self._mcts_state_tracker.get_state_for_agent()
-        if state['turn'] > 44:
-            state['turn'] = self._suspend_turn
+                if term <= 0.5:
+                    node.expand([(action, leaf_value)])
+                    action_str, node = node.select(self._c_puct)
+                    action = eval(action_str)
+                    temp_stracker.update(agent_action=action)
+                else:
+                    break
+            else:
+                if node.is_leaf():
+                    state = temp_stracker.get_state_for_agent()
+                    action, leaf_value, term = self._policy(state)
 
-        # Evaluate the leaf using a network which outputs a list of (action, probability)
-        # tuples p and also a score v in [-1, 1] for the current player.
-        action, leaf_value, term = self._policy(state)
-        # print("_policy: ", action, leaf_value, term)
-
-        # Check for end of game.
-        # end, winner = state.game_end()
-        term = term
-        leaf_value = leaf_value
-
-        if term <= 0.5:
-            node.expand([(action, leaf_value)])
+                    if term <= 0.5:
+                        node.expand([(action, leaf_value)])
+                        action_str, node = node.select(self._c_puct)
+                        action = eval(action_str)
+                        temp_stracker.update(agent_action=action)
+                    else:
+                        break
+                else:
+                    action_str, node = node.select(self._c_puct)
+                    # state.do_move(action)
+                    # print("select:", action, node.get_value(5))
+                    action = eval(action_str)
+                    temp_stracker.update(agent_action=action)
 
         third_time = time.time()
         # print(f'--选择并扩展用时{(third_time-second_time)*1000}ms')
 
-        # else:
-        #     # for end state，return the "true" leaf_value
-        #     if winner == -1:  # tie
-        #         leaf_value = 0.0
-        #     else:
-        #         leaf_value = 1.0 if winner == state.get_current_player() else -1.0
-
         # Update value and visit count of nodes in this traversal.
         node.update_recursive(-leaf_value)
 
-    def get_move_probs(self, state, temp=1e-3):
+    def get_move_probs(self, mcts_state_tracker, temp=1e-3):
         """Runs all playouts sequentially and returns the available actions and their corresponding probabilities
         Arguments:
         state -- the current state, including both game state and the current player.
@@ -169,23 +162,22 @@ class MCTS(object):
         the available actions and the corresponding probabilities
         """
         start_time = time.time()
-        with open(self._backup_state_tracker, 'rb') as f:
-            # state_copy = pickle.load(f)
-            self._mcts_state_tracker = pickle.load(f)
-            self._suspend_turn = self._mcts_state_tracker.turn_count
-
+        # with open(self._backup_state_tracker, 'rb') as f:
+        #     # state_copy = pickle.load(f)
+        #     self._mcts_state_tracker = pickle.load(f)
+        #     self._suspend_turn = self._mcts_state_tracker.turn_count
         for n in range(self._n_playout):
+            temp_stracker = copy.deepcopy(mcts_state_tracker)
             if (n+1)%100 == 0:
                 print("当前mc模拟次数", n+1)
-            # state_copy = copy.deepcopy(state)
-            # state_copy = pickle.dumps(state)
-            first_time = time.time()
-
-            second_time = time.time()
+            # first_time = time.time()
+            # second_time = time.time()
             # print(f'--load 耗时{(second_time-first_time)*1000}ms')
-            self._playout()
+            self._playout(temp_stracker)
+            del temp_stracker
         end_time = time.time()
         print(f'mcts 用时{(end_time-start_time)*1000}ms')
+        print(f'_root._children length{len(self._root._children.keys())}')
 
         # calc the move probabilities based on the visit counts at the root node
         act_visits = [(act, node._n_visits) for act, node in self._root._children.items()]
@@ -210,9 +202,9 @@ class MCTS(object):
 class MCTSPlayer(object):
     """AI player based on MCTS"""
 
-    def __init__(self, policy_value_function, mcts_state_tracker,
-                 c_puct=5, n_playout=20, is_selfplay=0):
-        self.mcts = MCTS(policy_value_function, mcts_state_tracker, c_puct, n_playout)
+    def __init__(self, policy_value_function,
+                 c_puct=5, n_playout=20, is_selfplay=1):
+        self.mcts = MCTS(policy_value_function, c_puct, n_playout)
         self._is_selfplay = is_selfplay
 
     def set_player_ind(self, p):
@@ -221,9 +213,9 @@ class MCTSPlayer(object):
     def reset_player(self):
         self.mcts.update_with_move(-1)
 
-    def get_action(self, mcts_state, temp=1e-3, return_prob=0):
+    def get_action(self, mcts_state_tracker, temp=1e-3, return_prob=0):
 
-        acts, probs = self.mcts.get_move_probs(mcts_state, temp)
+        acts, probs = self.mcts.get_move_probs(mcts_state_tracker, temp)
         if self._is_selfplay:
             # add Dirichlet Noise for exploration (needed for
             # self-play training)
