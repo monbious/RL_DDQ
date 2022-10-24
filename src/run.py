@@ -354,6 +354,8 @@ def simulation_epoch(simulation_epoch_size):
 
     res = {}
     for episode in range(simulation_epoch_size):
+        dialog_manager.memory_actions['m_agent_actions'] = []
+        dialog_manager.memory_actions['m_user_actions'] = []
         dialog_manager.initialize_episode(use_environment=True)
         episode_over = False
         while (not episode_over):
@@ -388,6 +390,8 @@ def simulation_epoch_for_training(simulation_epoch_size, grounded_for_model=Fals
         else:
             use_environment = False
 
+        dialog_manager.memory_actions['m_agent_actions'] = []
+        dialog_manager.memory_actions['m_user_actions'] = []
         dialog_manager.initialize_episode(use_environment or grounded_for_model)
 
         episode_over = False
@@ -419,7 +423,10 @@ def warm_start_simulation():
     res = {}
     warm_start_run_epochs = 0
     for episode in range(warm_start_epochs):
+        dialog_manager.memory_actions['m_agent_actions']=[]
+        dialog_manager.memory_actions['m_user_actions']=[]
         dialog_manager.initialize_episode(use_environment=True)
+
         episode_over = False
         while (not episode_over):
             episode_over, reward = dialog_manager.next_turn()
@@ -480,6 +487,8 @@ def run_episodes(count, status):
         # print("Episode: %s" % (episode))
 
         agent.predict_mode = False
+        dialog_manager.memory_actions['m_agent_actions'] = []
+        dialog_manager.memory_actions['m_user_actions'] = []
         dialog_manager.initialize_episode(True)
         episode_over = False
 

@@ -121,7 +121,10 @@ class MCTS(object):
             if temp_stracker.turn_count > 44:
                 break
             if random.random() < 0.2:
-                state = temp_stracker.get_state_for_agent()
+                if temp_stracker.turn_count % 2 == 0:
+                    state = temp_stracker.get_state_for_user()
+                else:
+                    state = temp_stracker.get_state_for_agent()
                 action, leaf_value, term, action_index = self._policy(state)
 
                 if term <= 0.5:
@@ -129,11 +132,18 @@ class MCTS(object):
                     action_index, node = node.select(self._c_puct)
                     action = get_action_by_index(action_index)
                     temp_stracker.update(agent_action=action)
+                    # if temp_stracker.turn_count % 2 == 0:
+                    #     temp_stracker.update(user_action=action)
+                    # else:
+                    #     temp_stracker.update(agent_action=action)
                 else:
                     break
             else:
                 if node.is_leaf():
-                    state = temp_stracker.get_state_for_agent()
+                    if temp_stracker.turn_count % 2 == 0:
+                        state = temp_stracker.get_state_for_user()
+                    else:
+                        state = temp_stracker.get_state_for_agent()
                     action, leaf_value, term, action_index = self._policy(state)
 
                     if term <= 0.5:
@@ -156,7 +166,7 @@ class MCTS(object):
         # Update value and visit count of nodes in this traversal.
         node.update_recursive(-leaf_value)
 
-    def get_move_probs(self, mcts_state_tracker, temp=1e-3):
+    def get_move_probs(self, mcts_state_tracker, memory_actions, temp=1e-3):
         """Runs all playouts sequentially and returns the available actions and their corresponding probabilities
         Arguments:
         state -- the current state, including both game state and the current player.
@@ -165,12 +175,16 @@ class MCTS(object):
         the available actions and the corresponding probabilities
         """
         start_time = time.time()
-
+        user_actions = memory_actions['m_user_actions']
+        agent_actions = memory_actions['m_agent_actions']
         for n in range(self._n_playout):
-            with open(mcts_state_tracker, 'rb') as f:
-                temp_stracker = pickle.load(f)
-            self._playout(temp_stracker)
-            del temp_stracker
+            mcts_state_tracker.initialize_episode()
+            for i in range(len(user_actions)):
+                mcts_state_tracker.update(user_action=user_actions[i])
+                if i < len(agent_actions):
+                    mcts_state_tracker.update(agent_action=agent_actions[i])
+
+            self._playout(mcts_state_tracker)
         end_time = time.time()
         print(f'mcts 用时{(end_time-start_time)*1000}ms')
         print(f'_root._children length{len(self._root._children.keys())}')
@@ -209,9 +223,10 @@ class MCTSPlayer(object):
     def reset_player(self):
         self.mcts.update_with_move(-1)
 
-    def get_action(self, mcts_state_tracker, temp=1e-3, return_prob=0):
+    def get_action(self, mcts_state_tracker, memory_actions, temp=1e-3, return_prob=0):
 
-        acts, probs = self.mcts.get_move_probs(mcts_state_tracker, temp)
+        acts, probs = self.mcts.get_move_probs(mcts_state_tracker=mcts_state_tracker,
+                                               memory_actions=memory_actions, temp=temp)
         if self._is_selfplay:
             # add Dirichlet Noise for exploration (needed for
             # self-play training)
