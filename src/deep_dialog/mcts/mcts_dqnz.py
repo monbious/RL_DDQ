@@ -117,10 +117,13 @@ class MCTS(object):
         #     self._mcts_state_tracker = pickle.load(f)
         # second_time = time.time()
         # print(f'--loads statetracker用时{(second_time-first_time)*1000}ms')
+        counter = 0
         while True:
-            if temp_stracker.turn_count > 44:
+            # print(f'temp_stracker.turn_count:{temp_stracker.turn_count}')
+            counter += 1
+            if temp_stracker.turn_count > 44 or counter > 80:
                 break
-            if random.random() < 0.2:
+            if random.random() < 0.3:
                 if temp_stracker.turn_count % 2 == 0:
                     state = temp_stracker.get_state_for_user()
                 else:
@@ -137,7 +140,8 @@ class MCTS(object):
                     # else:
                     #     temp_stracker.update(agent_action=action)
                 else:
-                    break
+                    if len(self._root._children.items()) > 0:
+                        break
             else:
                 if node.is_leaf():
                     if temp_stracker.turn_count % 2 == 0:
@@ -152,7 +156,8 @@ class MCTS(object):
                         action = get_action_by_index(action_index)
                         temp_stracker.update(agent_action=action)
                     else:
-                        break
+                        if len(self._root._children.items()) > 0:
+                            break
                 else:
                     action_index, node = node.select(self._c_puct)
                     # state.do_move(action)

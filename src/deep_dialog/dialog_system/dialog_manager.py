@@ -90,7 +90,9 @@ class DialogManager:
         self.state = self.state_tracker.get_state_for_agent()
         # print("当前对话轮数: ", self.state_tracker.turn_count)
 
-        if self.params['usr'] == 2 and self.state['turn'] > 6 and self.state['turn'] < 13 and random.random() > 0.6:
+        if self.params['usr'] == 2 and self.use_world_model \
+                and self.state['turn'] > 5 and self.state['turn'] < 15 \
+                and random.random() > 0:
             try:
                 self.agent_action, self.agent.action = self.mcts_action()
                 # print('simulated agent_action:', self.agent_action)

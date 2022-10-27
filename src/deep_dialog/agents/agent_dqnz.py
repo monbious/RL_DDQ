@@ -236,12 +236,12 @@ class AgentDQNZ(Agent):
         """ epsilon-greedy policy """
 
         if random.random() < self.epsilon:
-            return torch.IntTensor([random.randint(0, self.num_actions - 1)]), 0.1, 0.5
+            return torch.IntTensor([random.randint(0, self.num_actions - 1)]), 0, 0.5
         else:
             if self.warm_start == 1:
                 if len(self.experience_replay_pool) > self.experience_replay_pool_size:
                     self.warm_start = 2
-                return self.rule_policy(), 1.0, 0.5
+                return self.rule_policy(), 0.5, 0.5
             else:
                 return self.mcts_DQN_policy(mcts_representation)
 
@@ -285,7 +285,7 @@ class AgentDQNZ(Agent):
 
         with torch.no_grad():
             action, reward, qvalue, term = self.dqnz.predict(torch.FloatTensor(mcts_state_representation))
-        return action, qvalue, term
+        return action, reward, term
 
     def DQN_policy(self, state_representation):
         """ Return action from DQN"""
