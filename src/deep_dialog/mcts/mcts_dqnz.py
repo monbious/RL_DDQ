@@ -179,7 +179,7 @@ class MCTS(object):
         Returns:
         the available actions and the corresponding probabilities
         """
-        start_time = time.time()
+        # start_time = time.time()
         user_actions = memory_actions['m_user_actions']
         agent_actions = memory_actions['m_agent_actions']
         for n in range(self._n_playout):
@@ -190,9 +190,9 @@ class MCTS(object):
                     mcts_state_tracker.update(agent_action=agent_actions[i])
 
             self._playout(mcts_state_tracker)
-        end_time = time.time()
-        print(f'mcts 用时{(end_time-start_time)*1000}ms')
-        print(f'_root._children length{len(self._root._children.keys())}')
+        # end_time = time.time()
+        # print(f'mcts 用时{(end_time-start_time)*1000}ms')
+        # print(f'_root._children length{len(self._root._children.keys())}')
 
         # calc the move probabilities based on the visit counts at the root node
         act_visits = [(act, node._n_visits) for act, node in self._root._children.items()]

@@ -62,7 +62,8 @@ class DialogManager:
 
         self.user_action = self.running_user.initialize_episode()
 
-        self.memory_actions['m_user_actions'].append(self.user_action)
+        if self.params['usr'] == 2:
+            self.memory_actions['m_user_actions'].append(self.user_action)
 
         if use_environment:
             self.world_model.sample_goal = self.user.sample_goal
@@ -99,12 +100,13 @@ class DialogManager:
                 # self.agent.action = self.agent.feasible_actions.index(self.agent_action['act_slot_response'])
                 # print('与之对应的行为索引:', self.agent.action)
             except Exception as e:
-                print(e)
+                # print(e)
                 self.agent_action = self.agent.state_to_action(self.state)
         else:
             self.agent_action = self.agent.state_to_action(self.state)
 
-        self.memory_actions['m_agent_actions'].append(self.agent_action)
+        if self.params['usr'] == 2:
+            self.memory_actions['m_agent_actions'].append(self.agent_action)
 
         ########################################################################
         #   Register AGENT action with the state_tracker
@@ -132,7 +134,8 @@ class DialogManager:
         #   Update state tracker with latest user action
         ########################################################################
         if self.episode_over != True:
-            self.memory_actions['m_user_actions'].append(self.user_action)
+            if self.params['usr'] == 2:
+                self.memory_actions['m_user_actions'].append(self.user_action)
             self.state_tracker.update(user_action=self.user_action)
             self.print_function(user_action=self.user_action)
 

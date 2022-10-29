@@ -138,7 +138,7 @@ if __name__ == "__main__":
         plt.fill_between(x[:-1], turn_mean[i][:-1]+turn_std[i][:-1], turn_mean[i][:-1]-turn_std[i][:-1], color=sub_color[i], alpha=0.2)
 
     plt.legend(['DQN', 'DDQ(10)', "DDQ(20)"], loc='upper right', prop={'size': 6})
-    plt.savefig('res_turn.png')
+    plt.savefig('res_turn1.png')
     # plt.show()
 
     
