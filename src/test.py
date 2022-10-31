@@ -65,3 +65,5 @@ fp = os.path.join(current_dir, './test.sh')
 print(fp)
 with open(fp, 'r') as f:
     print(f.readline())
+
+print(('6' if 'DQNZ' in 'DDQ_k1_run' else '10'))

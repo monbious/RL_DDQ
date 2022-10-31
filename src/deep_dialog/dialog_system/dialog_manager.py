@@ -92,13 +92,10 @@ class DialogManager:
         # print("当前对话轮数: ", self.state_tracker.turn_count)
 
         if self.params['usr'] == 2 and self.use_world_model \
-                and self.state['turn'] > 5 and self.state['turn'] < 15 \
-                and random.random() > 0:
+                and self.state['turn'] > 5 \
+                and random.random() > 0.5:
             try:
                 self.agent_action, self.agent.action = self.mcts_action()
-                # print('simulated agent_action:', self.agent_action)
-                # self.agent.action = self.agent.feasible_actions.index(self.agent_action['act_slot_response'])
-                # print('与之对应的行为索引:', self.agent.action)
             except Exception as e:
                 # print(e)
                 self.agent_action = self.agent.state_to_action(self.state)

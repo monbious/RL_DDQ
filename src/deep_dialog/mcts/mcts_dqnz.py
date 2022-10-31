@@ -123,7 +123,7 @@ class MCTS(object):
             counter += 1
             if temp_stracker.turn_count > 44 or counter > 80:
                 break
-            if random.random() < 0.3:
+            if random.random() < 0.2:
                 if temp_stracker.turn_count % 2 == 0:
                     state = temp_stracker.get_state_for_user()
                 else:
@@ -218,7 +218,7 @@ class MCTSPlayer(object):
     """AI player based on MCTS"""
 
     def __init__(self, policy_value_function,
-                 c_puct=5, n_playout=20, is_selfplay=1):
+                 c_puct=4, n_playout=20, is_selfplay=1):
         self.mcts = MCTS(policy_value_function, c_puct, n_playout)
         self._is_selfplay = is_selfplay
 
