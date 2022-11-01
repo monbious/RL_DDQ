@@ -54,8 +54,8 @@ class AgentDQN(Agent):
         self.max_turn = params['max_turn'] + 5
         self.state_dimension = 2 * self.act_cardinality + 7 * self.slot_cardinality + 3 + self.max_turn
 
-        self.dqn = DQN(self.state_dimension, self.hidden_size, self.num_actions).to(DEVICE)
-        self.target_dqn = DQN(self.state_dimension, self.hidden_size, self.num_actions).to(DEVICE)
+        self.dqn = DQN(self.state_dimension, self.hidden_size, self.num_actions, 1).to(DEVICE)
+        self.target_dqn = DQN(self.state_dimension, self.hidden_size, self.num_actions, 1).to(DEVICE)
         self.target_dqn.load_state_dict(self.dqn.state_dict())
         self.target_dqn.eval()
 
@@ -80,13 +80,17 @@ class AgentDQN(Agent):
         """ DQN: Input state, output action """
         # self.state['turn'] += 2
         self.representation = self.prepare_state_representation(state)
-        self.action = self.run_policy(self.representation)
+        self.action, value = self.run_policy(self.representation)
         if self.warm_start == 1:
             act_slot_response = copy.deepcopy(self.feasible_actions[self.action])
+            action_index = self.action
         else:
             act_slot_response = copy.deepcopy(self.feasible_actions[self.action[0]])
+            action_index = self.action[0]
 
-        return {'act_slot_response': act_slot_response, 'act_slot_value_response': None}
+        response_action = {'act_slot_response': act_slot_response, 'act_slot_value_response': None}
+
+        return response_action, value, action_index
 
     def prepare_state_representation(self, state):
         """ Create the representation for each state """
@@ -187,12 +191,12 @@ class AgentDQN(Agent):
         """ epsilon-greedy policy """
 
         if random.random() < self.epsilon:
-            return torch.IntTensor([random.randint(0, self.num_actions - 1)])
+            return torch.IntTensor([random.randint(0, self.num_actions - 1)]), random.uniform(0, 0.3)
         else:
             if self.warm_start == 1:
                 if len(self.experience_replay_pool) > self.experience_replay_pool_size:
                     self.warm_start = 2
-                return self.rule_policy()
+                return self.rule_policy(), random.uniform(0.5, 0.8)
             else:
                 return self.DQN_policy(representation)
 
@@ -222,8 +226,8 @@ class AgentDQN(Agent):
         """ Return action from DQN"""
 
         with torch.no_grad():
-            action = self.dqn.predict(torch.FloatTensor(state_representation))
-        return action
+            action, value = self.dqn.predict(torch.FloatTensor(state_representation))
+        return action, value
 
     def action_index(self, act_slot_response):
         """ Return the index of action """

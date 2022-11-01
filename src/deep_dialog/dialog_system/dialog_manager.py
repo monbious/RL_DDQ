@@ -8,12 +8,21 @@ import json
 from . import StateTracker
 from deep_dialog import dialog_config
 import copy
+import pickle
 
+from . import StateTracker
+from deep_dialog import dialog_config
+import copy
+from deep_dialog.mcts.mcts_dqnz import MCTSPlayer
+import random, time
+import os
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
 
 class DialogManager:
     """ A dialog manager to mediate the interaction between an agent and a customer """
 
-    def __init__(self, agent, user, world_model, act_set, slot_set, movie_dictionary):
+    def __init__(self, agent, user, world_model, act_set, slot_set, movie_dictionary, params):
         self.agent = agent
         self.user = user
         self.world_model = world_model
@@ -24,6 +33,12 @@ class DialogManager:
         self.reward = 0
         self.episode_over = False
 
+        self.params = params
+        # 自己和自己对话
+        if self.params['mcts'] == 1:
+            self.player = MCTSPlayer(self.agent.mcts_state_to_action, self.agent.mcts_next)
+            self.mcts_state_tracker = copy.deepcopy(self.state_tracker)
+            self.memory_actions = {'m_agent_actions': [],'m_user_actions': []}
 
         self.use_world_model = False
         self.running_user = self.user
@@ -35,6 +50,9 @@ class DialogManager:
         self.episode_over = False
 
         self.state_tracker.initialize_episode()
+        if self.params['mcts'] == 1:
+            self.mcts_state_tracker.initialize_episode()
+
         self.running_user = self.user
         self.use_world_model = False
 
@@ -46,6 +64,9 @@ class DialogManager:
             self.use_world_model = False
 
         self.user_action = self.running_user.initialize_episode()
+
+        if self.params['mcts'] == 1:
+            self.memory_actions['m_user_actions'].append(self.user_action)
 
         if use_environment:
             self.world_model.sample_goal = self.user.sample_goal
@@ -59,6 +80,11 @@ class DialogManager:
 
         self.agent.initialize_episode()
 
+    def mcts_action(self):
+        self.mcts_agent_action, action_index = self.player.get_action(mcts_state_tracker=self.mcts_state_tracker,
+                                                                      memory_actions=self.memory_actions)
+        return self.mcts_agent_action, action_index
+
     def next_turn(self, record_training_data=True, record_training_data_for_user=True):
         """ This function initiates each subsequent exchange between agent and user (agent first) """
 
@@ -66,9 +92,21 @@ class DialogManager:
         #   CALL AGENT TO TAKE HER TURN
         ########################################################################
         self.state = self.state_tracker.get_state_for_agent()
-        self.agent_action = self.agent.state_to_action(self.state)
+        # print("当前对话轮数: ", self.state_tracker.turn_count) and self.use_world_model
 
-        # TODO
+        if self.params['mcts'] == 1 \
+                and self.state['turn'] > 5 \
+                and random.random() > 0.5:
+            try:
+                self.agent_action, self.agent.action = self.mcts_action()
+            except Exception as e:
+                print(e)
+                self.agent_action, _, _ = self.agent.state_to_action(self.state)
+        else:
+            self.agent_action, _, _ = self.agent.state_to_action(self.state)
+
+        if self.params['mcts'] == 1:
+            self.memory_actions['m_agent_actions'].append(self.agent_action)
 
         ########################################################################
         #   Register AGENT action with the state_tracker
@@ -78,6 +116,7 @@ class DialogManager:
         self.state_user = self.state_tracker.get_state_for_user()
 
         self.agent.add_nl_to_action(self.agent_action)  # add NL to Agent Dia_Act
+
         self.print_function(agent_action=self.agent_action['act_slot_response'])
 
         ########################################################################
@@ -95,6 +134,8 @@ class DialogManager:
         #   Update state tracker with latest user action
         ########################################################################
         if self.episode_over != True:
+            if self.params['mcts'] == 1:
+                self.memory_actions['m_user_actions'].append(self.user_action)
             self.state_tracker.update(user_action=self.user_action)
             self.print_function(user_action=self.user_action)
 

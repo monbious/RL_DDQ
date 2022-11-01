@@ -81,13 +81,14 @@ class Agent:
        
     def add_nl_to_action(self, agent_action):
         """ Add NL to Agent Dia_Act """
-        
-        if agent_action['act_slot_response']:
-            agent_action['act_slot_response']['nl'] = ""
-            #TODO
-            user_nlg_sentence = self.nlg_model.convert_diaact_to_nl(agent_action['act_slot_response'], 'agt') #self.nlg_model.translate_diaact(agent_action['act_slot_response']) # NLG
-            agent_action['act_slot_response']['nl'] = user_nlg_sentence
-        elif agent_action['act_slot_value_response']:
-            agent_action['act_slot_value_response']['nl'] = ""
-            user_nlg_sentence = self.nlg_model.convert_diaact_to_nl(agent_action['act_slot_value_response'], 'agt') #self.nlg_model.translate_diaact(agent_action['act_slot_value_response']) # NLG
-            agent_action['act_slot_response']['nl'] = user_nlg_sentence
+
+        if 'act_slot_response' in agent_action:
+            if agent_action['act_slot_response']:
+                agent_action['act_slot_response']['nl'] = ""
+                #TODO
+                user_nlg_sentence = self.nlg_model.convert_diaact_to_nl(agent_action['act_slot_response'], 'agt') #self.nlg_model.translate_diaact(agent_action['act_slot_response']) # NLG
+                agent_action['act_slot_response']['nl'] = user_nlg_sentence
+            elif agent_action['act_slot_value_response']:
+                agent_action['act_slot_value_response']['nl'] = ""
+                user_nlg_sentence = self.nlg_model.convert_diaact_to_nl(agent_action['act_slot_value_response'], 'agt') #self.nlg_model.translate_diaact(agent_action['act_slot_value_response']) # NLG
+                agent_action['act_slot_response']['nl'] = user_nlg_sentence

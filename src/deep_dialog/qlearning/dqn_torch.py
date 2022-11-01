@@ -7,24 +7,27 @@ from torch.autograd import Variable
 
 
 class DQN(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size):
+    def __init__(self, input_size, hidden_size, output_size, output_size2):
         super(DQN, self).__init__()
 
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.output_size = output_size
+        self.output_size2 = output_size2
 
         self.linear_i2h = nn.Linear(self.input_size, self.hidden_size)
         self.linear_h2o = nn.Linear(self.hidden_size, self.output_size)
+        self.linear_h2o2 = nn.Linear(self.hidden_size, self.output_size2)
 
     def forward(self, x):
         x = torch.tanh(self.linear_i2h(x))
-        x = self.linear_h2o(x)
-        return x
+        x1 = self.linear_h2o(x)
+        x2 = self.linear_h2o2(x)
+        return x1, x2
 
     def predict(self, x):
-        y = self.forward(x)
-        return torch.argmax(y, 1)
+        y1, y2 = self.forward(x)
+        return torch.argmax(y1, 1), y2
 
 
 class DQN2(nn.Module):

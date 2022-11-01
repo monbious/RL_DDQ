@@ -3,13 +3,13 @@ This should be a simple minimalist run file. It's only responsibility should be 
 (which agent, user simulator to use) and launch a dialog simulation.
 """
 import sys
-sys.path.append(sys.path[0].split('src')[0])
 import argparse, json, copy, os
 import pickle
 import numpy
 import random
 import torch
 
+import deep_dialog.dialog_config
 from deep_dialog.dialog_system import DialogManager, text_to_dict
 from deep_dialog.agents import (AgentCmd, InformAgent, RequestAllAgent, RandomAgent, 
                                 EchoAgent, RequestBasicsAgent, AgentDQN, AgentSAC, AgentTD3)
@@ -132,6 +132,8 @@ if __name__ == "__main__":
                         help='Whether train world model on the fly or not')
     parser.add_argument('--torch_seed', dest='torch_seed', type=int, default=100,
                         help='random seed for troch')
+    parser.add_argument('--mcts', dest='mcts', type=int, default=0,
+                        help='use mcts')
 
     args = parser.parse_args()
     params = vars(args)
@@ -165,6 +167,8 @@ for u_goal_id, u_goal in enumerate(all_goal_set):
         goal_set['train'].append(u_goal)
     goal_set['all'].append(u_goal)
 # end split goal set
+
+deep_dialog.dialog_config.goal_set = goal_set
 
 movie_kb_path = params['movie_kb_path']
 try:
@@ -205,6 +209,19 @@ agent_params['trained_model_path'] = params['trained_model_path']
 agent_params['warm_start'] = params['warm_start']
 agent_params['cmd_input_mode'] = params['cmd_input_mode']
 
+################################################################################
+#   Parameters for User Simulators
+################################################################################
+usersim_params = {}
+usersim_params['max_turn'] = max_turn
+usersim_params['slot_err_probability'] = params['slot_err_prob']
+usersim_params['slot_err_mode'] = params['slot_err_mode']
+usersim_params['intent_err_probability'] = params['intent_err_prob']
+usersim_params['simulator_run_mode'] = params['run_mode']
+usersim_params['simulator_act_level'] = params['act_level']
+usersim_params['learning_phase'] = params['learning_phase']
+usersim_params['hidden_size'] = params['dqn_hidden_size']
+
 # Manually set torch seed to ensure fail comparison.
 torch.manual_seed(params['torch_seed'])
 
@@ -233,18 +250,7 @@ elif agt == 9:
 else:
     pass
 
-################################################################################
-#   Parameters for User Simulators
-################################################################################
-usersim_params = {}
-usersim_params['max_turn'] = max_turn
-usersim_params['slot_err_probability'] = params['slot_err_prob']
-usersim_params['slot_err_mode'] = params['slot_err_mode']
-usersim_params['intent_err_probability'] = params['intent_err_prob']
-usersim_params['simulator_run_mode'] = params['run_mode']
-usersim_params['simulator_act_level'] = params['act_level']
-usersim_params['learning_phase'] = params['learning_phase']
-usersim_params['hidden_size'] = params['dqn_hidden_size']
+
 
 if usr == 0:  # real user
     user_sim = RealUser(movie_dictionary, act_set, slot_set, goal_set, usersim_params)
@@ -252,9 +258,9 @@ elif usr == 1:
     user_sim = RuleSimulator(movie_dictionary, act_set, slot_set, goal_set, usersim_params)
     world_model = ModelBasedSimulator(movie_dictionary, act_set, slot_set, goal_set, usersim_params)
     agent.set_user_planning(world_model)
-# elif usr == 2:
-#     user_sim = ModelBasedSimulator(movie_dictionary, act_set, slot_set, goal_set, usersim_params)
-
+elif usr == 2:
+    user_sim = RuleSimulator(movie_dictionary, act_set, slot_set, goal_set, usersim_params)
+    world_model = agent
 ################################################################################
 #    Add your user simulator here
 ################################################################################
@@ -288,7 +294,7 @@ world_model.set_nlu_model(nlu_model)
 ################################################################################
 # Dialog Manager
 ################################################################################
-dialog_manager = DialogManager(agent, user_sim, world_model, act_set, slot_set, movie_kb)
+dialog_manager = DialogManager(agent, user_sim, world_model, act_set, slot_set, movie_kb, params)
 
 ################################################################################
 #   Run num_episodes Conversation Simulations
@@ -350,6 +356,9 @@ def simulation_epoch(simulation_epoch_size):
 
     res = {}
     for episode in range(simulation_epoch_size):
+        if params['mcts'] == 1:
+            dialog_manager.memory_actions['m_agent_actions'] = []
+            dialog_manager.memory_actions['m_user_actions'] = []
         dialog_manager.initialize_episode(use_environment=True)
         episode_over = False
         while (not episode_over):
@@ -383,7 +392,9 @@ def simulation_epoch_for_training(simulation_epoch_size, grounded_for_model=Fals
             use_environment = True
         else:
             use_environment = False
-
+        if params['mcts'] == 1:
+            dialog_manager.memory_actions['m_agent_actions'] = []
+            dialog_manager.memory_actions['m_user_actions'] = []
         dialog_manager.initialize_episode(use_environment or grounded_for_model)
 
         episode_over = False
@@ -415,7 +426,11 @@ def warm_start_simulation():
     res = {}
     warm_start_run_epochs = 0
     for episode in range(warm_start_epochs):
+        if params['mcts'] == 1:
+            dialog_manager.memory_actions['m_agent_actions']=[]
+            dialog_manager.memory_actions['m_user_actions']=[]
         dialog_manager.initialize_episode(use_environment=True)
+
         episode_over = False
         while (not episode_over):
             episode_over, reward = dialog_manager.next_turn()
@@ -474,7 +489,11 @@ def run_episodes(count, status):
     for episode in range(count):
 
         # print("Episode: %s" % (episode))
+
         agent.predict_mode = False
+        if params['mcts'] == 1:
+            dialog_manager.memory_actions['m_agent_actions'] = []
+            dialog_manager.memory_actions['m_user_actions'] = []
         dialog_manager.initialize_episode(True)
         episode_over = False
 
@@ -554,6 +573,5 @@ def run_episodes(count, status):
         save_model(params['write_model_dir'], agt, float(successes) / count, 
                    best_model['model'], best_res['epoch'], count)
         save_performance_records(params['write_model_dir'], agt, performance_records)
-
 
 run_episodes(num_episodes, status)
