@@ -96,6 +96,7 @@ class DialogManager:
                 and random.random() > 0.5:
             try:
                 self.agent_action, self.agent.action = self.mcts_action()
+                # print("一次mcts后：mcts_state_tracker.turn_count", self.mcts_state_tracker.turn_count)
             except Exception as e:
                 print(e)
                 self.agent_action = self.agent.state_to_action(self.state)

@@ -138,6 +138,7 @@ class MCTS(object):
             # print(f'temp_stracker.turn_count:{temp_stracker.turn_count}, counter:{counter}')
             counter += 1
             if temp_stracker.turn_count > 44 or counter > 80:
+                print("一次mc counter", counter)
                 break
             if random.random() < 0.2:
                 if temp_stracker.turn_count % 2 == 0:
@@ -224,7 +225,7 @@ class MCTS(object):
         # end_time = time.time()
         # print(f'mcts 用时{(end_time-start_time)*1000}ms')
         # print(f'_root._children length{len(self._root._children.keys())}')
-
+        mcts_state_tracker.initialize_episode()
         # calc the move probabilities based on the visit counts at the root node
         act_visits = [(act, node._n_visits) for act, node in self._root._children.items()]
         acts, visits = zip(*act_visits)
