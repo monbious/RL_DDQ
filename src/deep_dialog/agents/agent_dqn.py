@@ -285,8 +285,8 @@ class AgentDQN(Agent):
                 self.optimizer.zero_grad()
                 batch = self.sample_from_buffer(batch_size)
 
-                state_value = self.dqn(torch.FloatTensor(batch.state)).gather(1, torch.tensor(batch.action, dtype=torch.int64))
-                next_state_value, _ = self.target_dqn(torch.FloatTensor(batch.next_state)).max(1)
+                state_value = self.dqn(torch.FloatTensor(batch.state))[0].gather(1, torch.tensor(batch.action, dtype=torch.int64))
+                next_state_value, _ = self.target_dqn(torch.FloatTensor(batch.next_state))[0].max(1)
                 next_state_value = next_state_value.unsqueeze(1)
                 term = np.asarray(batch.term, dtype=np.float32)
                 expected_value = torch.FloatTensor(batch.reward) + self.gamma * next_state_value * (

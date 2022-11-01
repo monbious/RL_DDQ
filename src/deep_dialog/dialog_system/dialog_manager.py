@@ -34,14 +34,15 @@ class DialogManager:
         self.episode_over = False
 
         self.params = params
-        # 自己和自己对话
-        if self.params['mcts'] == 1:
-            self.player = MCTSPlayer(self.agent.mcts_state_to_action, self.agent.mcts_next)
-            self.mcts_state_tracker = copy.deepcopy(self.state_tracker)
-            self.memory_actions = {'m_agent_actions': [],'m_user_actions': []}
 
         self.use_world_model = False
         self.running_user = self.user
+
+        if self.params['mcts'] == 1:
+            self.mcts_state_tracker = copy.deepcopy(self.state_tracker)
+            self.mcts_running_user = {'simul_runner': copy.deepcopy(self.world_model), 'user_runner': copy.deepcopy(self.running_user)}
+            self.player = MCTSPlayer(self.agent.state_to_action, self.mcts_running_user)
+            self.memory_actions = {'m_agent_actions': [],'m_user_actions': []}
 
     def initialize_episode(self, use_environment=False):
         """ Refresh state for new dialog """
@@ -82,7 +83,7 @@ class DialogManager:
 
     def mcts_action(self):
         self.mcts_agent_action, action_index = self.player.get_action(mcts_state_tracker=self.mcts_state_tracker,
-                                                                      memory_actions=self.memory_actions)
+                                                                      memory_actions=self.memory_actions, use_world_model=self.use_world_model)
         return self.mcts_agent_action, action_index
 
     def next_turn(self, record_training_data=True, record_training_data_for_user=True):
@@ -94,14 +95,14 @@ class DialogManager:
         self.state = self.state_tracker.get_state_for_agent()
         # print("当前对话轮数: ", self.state_tracker.turn_count) and self.use_world_model
 
-        if self.params['mcts'] == 1 \
+        if self.params['mcts'] == 1 and self.use_world_model\
                 and self.state['turn'] > 5 \
                 and random.random() > 0.5:
-            try:
-                self.agent_action, self.agent.action = self.mcts_action()
-            except Exception as e:
-                print(e)
-                self.agent_action, _, _ = self.agent.state_to_action(self.state)
+            # try:
+            self.agent_action, self.agent.action = self.mcts_action()
+            # except Exception as e:
+            #     print(e)
+            #     self.agent_action, _, _ = self.agent.state_to_action(self.state)
         else:
             self.agent_action, _, _ = self.agent.state_to_action(self.state)
 

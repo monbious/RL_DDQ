@@ -228,7 +228,8 @@ class ModelBasedSimulator(UserSimulator):
         """
 
         self.state['turn'] += 2
-        if (self.max_turn > 0 and self.state['turn'] >= self.max_turn):
+        # print(self.state['turn'])
+        if (self.max_turn > 0 and (self.state['turn'] > self.max_turn-1 or s['turn'] > self.max_turn-1)):
             reward = - self.max_turn
             term = True
             self.state['request_slots'].clear()
@@ -389,6 +390,7 @@ class ModelBasedSimulator(UserSimulator):
         #  One-hot representation of the turn count?
         ########################################################################
         turn_onehot_rep = np.zeros((1, self.max_turn))
+        # print(state['turn'], self.max_turn)
         turn_onehot_rep[0, state['turn']] = 1.0
 
         ########################################################################

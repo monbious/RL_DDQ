@@ -31,6 +31,7 @@ def get_user_action_by_index(action_index):
 
     return response_action
 
+
 class TreeNode(object):
     """A node in the MCTS tree. Each node keeps track of its own value Q, prior probability P, and
     its visit-count-adjusted prior score u.
@@ -105,7 +106,7 @@ class MCTS(object):
     """A simple implementation of Monte Carlo Tree Search.
     """
 
-    def __init__(self, policy_value_fn, user_policy_value_fn, c_puct=5, n_playout=10000):
+    def __init__(self, policy_value_fn, running_user, c_puct=5, n_playout=10000):
         """Arguments:
         policy_value_fn -- a function that takes in a board state and outputs a list of (action, probability)
             tuples and also a score in [-1, 1] (i.e. the expected value of the end game score from
@@ -115,11 +116,22 @@ class MCTS(object):
         """
         self._root = TreeNode(None, 1.0)
         self._policy = policy_value_fn
-        self._user_policy = user_policy_value_fn
+        self._runner = running_user
+        self._running_user = None
         self._c_puct = c_puct
         self._n_playout = n_playout
 
-    def _playout(self, temp_stracker):
+    def reward_function(self, dialog_status):
+        """ Reward Function 1: a reward function based on the dialog_status """
+        if dialog_status == dialog_config.FAILED_DIALOG:
+            reward = -self._running_user.max_turn  # 10
+        elif dialog_status == dialog_config.SUCCESS_DIALOG:
+            reward = 2 * self._running_user.max_turn  # 20
+        else:
+            reward = -1
+        return reward
+
+    def _playout(self, temp_stracker, use_world_model):
         """Run a single playout from the root to the leaf, getting a value at the leaf and
         propagating it back through its parents. State is modified in-place, so a copy must be
         provided.
@@ -128,12 +140,8 @@ class MCTS(object):
         """
         node = self._root
 
-        # first_time = time.time()
-        # with open(self._backup_state_tracker, 'rb') as f:
-        #     self._mcts_state_tracker = pickle.load(f)
-        # second_time = time.time()
-        # print(f'--loads statetracker用时{(second_time-first_time)*1000}ms')
         counter = 0
+        leaf_value = 0
         while True:
             # print(f'temp_stracker.turn_count:{temp_stracker.turn_count}, counter:{counter}')
             counter += 1
@@ -141,54 +149,67 @@ class MCTS(object):
                 break
             if random.random() < 0.2:
                 if temp_stracker.turn_count % 2 == 0:
-                    state = temp_stracker.get_state_for_user()
-                    action, leaf_value, term, action_index = self._user_policy(state)
+                    if use_world_model:
+                        state = temp_stracker.get_state_for_user()
+                        user_action, episode_over, reward = self._running_user.next(state, [action_index])
+                        if episode_over:
+                            break
+                        else:
+                            temp_stracker.update(user_action=user_action)
+                    else:
+                        sys_action = temp_stracker.dialog_history_dictionaries()[-1]
+                        user_action, episode_over, dialog_status = self._running_user.next(sys_action)
+                        reward = self.reward_function(dialog_status)
+                        if episode_over:
+                            break
+                        else:
+                            temp_stracker.update(user_action=user_action)
+
                 else:
                     state = temp_stracker.get_state_for_agent()
-                    action, leaf_value, term, action_index = self._policy(state)
+                    action, leaf_value, action_index = self._policy(state)
 
-                if term <= 0.5:
                     node.expand([(action_index, leaf_value)])
                     action_index, node = node.select(self._c_puct)
-                    # temp_stracker.update(agent_action=action)
                     if temp_stracker.turn_count % 2 == 0:
                         action = get_user_action_by_index(action_index)
                         temp_stracker.update(user_action=action)
                     else:
                         action = get_action_by_index(action_index)
                         temp_stracker.update(agent_action=action)
-                else:
-                    if len(self._root._children.items()) > 0:
-                        break
             else:
                 if node.is_leaf():
                     if temp_stracker.turn_count % 2 == 0:
-                        state = temp_stracker.get_state_for_user()
-                        action, leaf_value, term, action_index = self._user_policy(state)
+                        if use_world_model:
+                            state = temp_stracker.get_state_for_user()
+                            user_action, episode_over, reward = self._running_user.next(state, [action_index])
+                            if episode_over:
+                                break
+                            else:
+                                temp_stracker.update(user_action=user_action)
+                        else:
+                            sys_action = temp_stracker.dialog_history_dictionaries()[-1]
+                            user_action, episode_over, dialog_status = self._running_user.next(sys_action)
+                            reward = self.reward_function(dialog_status)
+                            if episode_over:
+                                break
+                            else:
+                                temp_stracker.update(user_action=user_action)
+
                     else:
                         state = temp_stracker.get_state_for_agent()
-                        action, leaf_value, term, action_index = self._policy(state)
+                        action, leaf_value, action_index = self._policy(state)
 
-                    if term <= 0.5:
                         node.expand([(action_index, leaf_value)])
                         action_index, node = node.select(self._c_puct)
-                        # action = get_action_by_index(action_index)
-                        # temp_stracker.update(agent_action=action)
                         if temp_stracker.turn_count % 2 == 0:
                             action = get_user_action_by_index(action_index)
                             temp_stracker.update(user_action=action)
                         else:
                             action = get_action_by_index(action_index)
                             temp_stracker.update(agent_action=action)
-                    else:
-                        if len(self._root._children.items()) > 0:
-                            break
                 else:
                     action_index, node = node.select(self._c_puct)
-                    # state.do_move(action)
-                    # print("select:", action, node.get_value(5))
-                    # action = get_action_by_index(action_index)
-                    # temp_stracker.update(agent_action=action)
                     if temp_stracker.turn_count % 2 == 0:
                         action = get_user_action_by_index(action_index)
                         temp_stracker.update(user_action=action)
@@ -202,7 +223,7 @@ class MCTS(object):
         # Update value and visit count of nodes in this traversal.
         node.update_recursive(-leaf_value)
 
-    def get_move_probs(self, mcts_state_tracker, memory_actions, temp=1e-3):
+    def get_move_probs(self, mcts_state_tracker, memory_actions, use_world_model, temp=1e-3):
         """Runs all playouts sequentially and returns the available actions and their corresponding probabilities
         Arguments:
         state -- the current state, including both game state and the current player.
@@ -210,21 +231,27 @@ class MCTS(object):
         Returns:
         the available actions and the corresponding probabilities
         """
-        # start_time = time.time()
+        start_time = time.time()
         user_actions = memory_actions['m_user_actions']
         agent_actions = memory_actions['m_agent_actions']
         for n in range(self._n_playout):
             mcts_state_tracker.initialize_episode()
+            if use_world_model:
+                self._running_user = self._runner['simul_runner']
+            else:
+                self._running_user = self._runner['user_runner']
+            self._running_user.initialize_episode()
             for i in range(len(user_actions)):
                 mcts_state_tracker.update(user_action=user_actions[i])
                 if i < len(agent_actions):
                     mcts_state_tracker.update(agent_action=agent_actions[i])
 
-            self._playout(mcts_state_tracker)
-        # end_time = time.time()
-        # print(f'mcts 用时{(end_time-start_time)*1000}ms')
+            self._playout(mcts_state_tracker, use_world_model)
+        end_time = time.time()
+        print(f'mcts 用时{(end_time-start_time)*1000}ms')
         # print(f'_root._children length{len(self._root._children.keys())}')
         mcts_state_tracker.initialize_episode()
+        self._running_user.initialize_episode()
         # calc the move probabilities based on the visit counts at the root node
         act_visits = [(act, node._n_visits) for act, node in self._root._children.items()]
         acts, visits = zip(*act_visits)
@@ -248,9 +275,9 @@ class MCTS(object):
 class MCTSPlayer(object):
     """AI player based on MCTS"""
 
-    def __init__(self, policy_value_function, user_policy_value_function,
+    def __init__(self, policy_value_function, running_user,
                  c_puct=4, n_playout=20, is_selfplay=1):
-        self.mcts = MCTS(policy_value_function, user_policy_value_function, c_puct, n_playout)
+        self.mcts = MCTS(policy_value_function, running_user, c_puct, n_playout)
         self._is_selfplay = is_selfplay
 
     def set_player_ind(self, p):
@@ -259,9 +286,9 @@ class MCTSPlayer(object):
     def reset_player(self):
         self.mcts.update_with_move(-1)
 
-    def get_action(self, mcts_state_tracker, memory_actions, temp=1e-3, return_prob=0):
+    def get_action(self, mcts_state_tracker, memory_actions, use_world_model, temp=1e-3, return_prob=0):
 
-        acts, probs = self.mcts.get_move_probs(mcts_state_tracker=mcts_state_tracker,
+        acts, probs = self.mcts.get_move_probs(mcts_state_tracker=mcts_state_tracker, use_world_model=use_world_model,
                                                memory_actions=memory_actions, temp=temp)
         if self._is_selfplay:
             # add Dirichlet Noise for exploration (needed for
@@ -281,7 +308,7 @@ class MCTSPlayer(object):
             # location = board.move_to_location(move)
             # print("AI move: %d,%d\n" % (location[0], location[1]))
 
-        return get_action_by_index(move), move
+        return get_action_by_index(move), [move]
 
         # sensible_moves = board.availables
         # # the pi vector returned by MCTS as in the alphaGo Zero paper
