@@ -457,6 +457,65 @@ class AgentDQNZ(Agent):
     def reset_dqn_target(self):
         self.target_dqnz.load_state_dict(self.dqnz.state_dict())
 
+    def mcts_next(self, s, a=0):
+        """
+        Provide
+        :param s: state representation from tracker
+        :param a: last action from agent
+        :return: next user action, termination and reward predicted by world model
+        """
+
+        self.state['turn'] = s['turn']
+        if (self.max_turn > 0 and self.state['turn'] >= self.max_turn-1):
+            reward = - self.max_turn
+            term = True
+            self.state['request_slots'].clear()
+            self.state['inform_slots'].clear()
+            self.state['diaact'] = "closing"
+            response_action = {}
+            response_action['diaact'] = self.state['diaact']
+            response_action['inform_slots'] = self.state['inform_slots']
+            response_action['request_slots'] = self.state['request_slots']
+            response_action['turn'] = self.state['turn']
+            return response_action, 0, 1, 0
+
+        s = self.prepare_state_representation(s)
+
+        # g = self.prepare_user_goal_representation(self.sample_goal)
+        # s = np.hstack([s, g])
+        try:
+            action_index, reward, qvalue, term = self.predict(torch.FloatTensor(s), torch.LongTensor(np.asarray(a)[:, None]))
+        except Exception as e:
+            # print(e)
+            action_index, reward, qvalue, term = self.predict(torch.FloatTensor(s), torch.LongTensor(np.asarray([a])[:, None]))
+        action_index = action_index.item()
+        reward = reward.item()
+        term = term.item()
+        qvalue = qvalue.item()
+
+        action = copy.deepcopy(self.feasible_actions_users[action_index])
+
+        if action['diaact'] == 'inform':
+            if len(action['inform_slots'].keys()) > 0:
+                slots = list(action['inform_slots'].keys())[0]
+                if slots in self.sample_goal['inform_slots'].keys():
+                    action['inform_slots'][slots] = self.sample_goal['inform_slots'][slots]
+                else:
+                    action['inform_slots'][slots] = dialog_config.I_DO_NOT_CARE
+
+        response_action = action
+
+        # term = term > 0.5
+
+        if reward > 1:
+            reward = 2 * self.max_turn
+        elif reward < -1:
+            reward = -self.max_turn
+        else:
+            reward = -1
+
+        return response_action, qvalue, term, action_index
+
     def next(self, s, a):
         """
         Provide

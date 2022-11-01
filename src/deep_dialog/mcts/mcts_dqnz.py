@@ -16,6 +16,21 @@ def get_action_by_index(action_index):
 
     return {'act_slot_response': act_slot_response, 'act_slot_value_response': None}
 
+def get_user_action_by_index(action_index):
+    action = copy.deepcopy(dialog_config.feasible_actions_users[action_index])
+    sample_goal = random.choice(dialog_config.goal_set['all'])
+    if action['diaact'] == 'inform':
+        if len(action['inform_slots'].keys()) > 0:
+            slots = list(action['inform_slots'].keys())[0]
+            if slots in sample_goal['inform_slots'].keys():
+                action['inform_slots'][slots] = sample_goal['inform_slots'][slots]
+            else:
+                action['inform_slots'][slots] = dialog_config.I_DO_NOT_CARE
+
+    response_action = action
+
+    return response_action
+
 class TreeNode(object):
     """A node in the MCTS tree. Each node keeps track of its own value Q, prior probability P, and
     its visit-count-adjusted prior score u.
@@ -90,7 +105,7 @@ class MCTS(object):
     """A simple implementation of Monte Carlo Tree Search.
     """
 
-    def __init__(self, policy_value_fn, c_puct=5, n_playout=10000):
+    def __init__(self, policy_value_fn, user_policy_value_fn, c_puct=5, n_playout=10000):
         """Arguments:
         policy_value_fn -- a function that takes in a board state and outputs a list of (action, probability)
             tuples and also a score in [-1, 1] (i.e. the expected value of the end game score from
@@ -100,6 +115,7 @@ class MCTS(object):
         """
         self._root = TreeNode(None, 1.0)
         self._policy = policy_value_fn
+        self._user_policy = user_policy_value_fn
         self._c_puct = c_puct
         self._n_playout = n_playout
 
@@ -119,26 +135,28 @@ class MCTS(object):
         # print(f'--loads statetracker用时{(second_time-first_time)*1000}ms')
         counter = 0
         while True:
-            # print(f'temp_stracker.turn_count:{temp_stracker.turn_count}')
+            # print(f'temp_stracker.turn_count:{temp_stracker.turn_count}, counter:{counter}')
             counter += 1
             if temp_stracker.turn_count > 44 or counter > 80:
                 break
             if random.random() < 0.2:
                 if temp_stracker.turn_count % 2 == 0:
                     state = temp_stracker.get_state_for_user()
+                    action, leaf_value, term, action_index = self._user_policy(state)
                 else:
                     state = temp_stracker.get_state_for_agent()
-                action, leaf_value, term, action_index = self._policy(state)
+                    action, leaf_value, term, action_index = self._policy(state)
 
                 if term <= 0.5:
                     node.expand([(action_index, leaf_value)])
                     action_index, node = node.select(self._c_puct)
-                    action = get_action_by_index(action_index)
-                    temp_stracker.update(agent_action=action)
-                    # if temp_stracker.turn_count % 2 == 0:
-                    #     temp_stracker.update(user_action=action)
-                    # else:
-                    #     temp_stracker.update(agent_action=action)
+                    # temp_stracker.update(agent_action=action)
+                    if temp_stracker.turn_count % 2 == 0:
+                        action = get_user_action_by_index(action_index)
+                        temp_stracker.update(user_action=action)
+                    else:
+                        action = get_action_by_index(action_index)
+                        temp_stracker.update(agent_action=action)
                 else:
                     if len(self._root._children.items()) > 0:
                         break
@@ -146,15 +164,22 @@ class MCTS(object):
                 if node.is_leaf():
                     if temp_stracker.turn_count % 2 == 0:
                         state = temp_stracker.get_state_for_user()
+                        action, leaf_value, term, action_index = self._user_policy(state)
                     else:
                         state = temp_stracker.get_state_for_agent()
-                    action, leaf_value, term, action_index = self._policy(state)
+                        action, leaf_value, term, action_index = self._policy(state)
 
                     if term <= 0.5:
                         node.expand([(action_index, leaf_value)])
                         action_index, node = node.select(self._c_puct)
-                        action = get_action_by_index(action_index)
-                        temp_stracker.update(agent_action=action)
+                        # action = get_action_by_index(action_index)
+                        # temp_stracker.update(agent_action=action)
+                        if temp_stracker.turn_count % 2 == 0:
+                            action = get_user_action_by_index(action_index)
+                            temp_stracker.update(user_action=action)
+                        else:
+                            action = get_action_by_index(action_index)
+                            temp_stracker.update(agent_action=action)
                     else:
                         if len(self._root._children.items()) > 0:
                             break
@@ -162,8 +187,14 @@ class MCTS(object):
                     action_index, node = node.select(self._c_puct)
                     # state.do_move(action)
                     # print("select:", action, node.get_value(5))
-                    action = get_action_by_index(action_index)
-                    temp_stracker.update(agent_action=action)
+                    # action = get_action_by_index(action_index)
+                    # temp_stracker.update(agent_action=action)
+                    if temp_stracker.turn_count % 2 == 0:
+                        action = get_user_action_by_index(action_index)
+                        temp_stracker.update(user_action=action)
+                    else:
+                        action = get_action_by_index(action_index)
+                        temp_stracker.update(agent_action=action)
 
         third_time = time.time()
         # print(f'--选择并扩展用时{(third_time-second_time)*1000}ms')
@@ -217,9 +248,9 @@ class MCTS(object):
 class MCTSPlayer(object):
     """AI player based on MCTS"""
 
-    def __init__(self, policy_value_function,
+    def __init__(self, policy_value_function, user_policy_value_function,
                  c_puct=4, n_playout=20, is_selfplay=1):
-        self.mcts = MCTS(policy_value_function, c_puct, n_playout)
+        self.mcts = MCTS(policy_value_function, user_policy_value_function, c_puct, n_playout)
         self._is_selfplay = is_selfplay
 
     def set_player_ind(self, p):

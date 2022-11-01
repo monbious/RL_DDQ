@@ -9,6 +9,7 @@ import numpy
 import random
 import torch
 
+import deep_dialog.dialog_config
 from deep_dialog.dialog_system import DialogManager, text_to_dict
 from deep_dialog.agents import (AgentCmd, InformAgent, RequestAllAgent, RandomAgent, 
                                 EchoAgent, RequestBasicsAgent, AgentDQN, AgentSAC, AgentTD3, AgentDQNZ)
@@ -164,6 +165,8 @@ for u_goal_id, u_goal in enumerate(all_goal_set):
         goal_set['train'].append(u_goal)
     goal_set['all'].append(u_goal)
 # end split goal set
+
+deep_dialog.dialog_config.goal_set = goal_set
 
 movie_kb_path = params['movie_kb_path']
 try:

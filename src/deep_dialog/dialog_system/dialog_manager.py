@@ -33,7 +33,7 @@ class DialogManager:
         self.params = params
         # 自己和自己对话
         if self.params['usr'] == 2:
-            self.player = MCTSPlayer(self.agent.mcts_state_to_action)
+            self.player = MCTSPlayer(self.agent.mcts_state_to_action, self.agent.mcts_next)
             self.mcts_state_tracker = copy.deepcopy(self.state_tracker)
             self.memory_actions = {'m_agent_actions': [],'m_user_actions': []}
 
@@ -97,7 +97,7 @@ class DialogManager:
             try:
                 self.agent_action, self.agent.action = self.mcts_action()
             except Exception as e:
-                # print(e)
+                print(e)
                 self.agent_action = self.agent.state_to_action(self.state)
         else:
             self.agent_action = self.agent.state_to_action(self.state)

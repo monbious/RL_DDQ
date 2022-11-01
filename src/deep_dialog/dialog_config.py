@@ -137,3 +137,5 @@ for slot in sys_request_slots_for_user:
     feasible_actions_users.append({'diaact': 'request', 'inform_slots': {}, 'request_slots': {slot: "UNK"}})
 
 feasible_actions_users.append({'diaact': 'inform', 'inform_slots': {}, 'request_slots': {}})
+
+goal_set = {}
