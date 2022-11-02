@@ -153,6 +153,7 @@ class MCTS(object):
                         state = temp_stracker.get_state_for_user()
                         user_action, episode_over, reward = self._running_user.next(state, [action_index])
                         if episode_over:
+                            leaf_value += reward
                             break
                         else:
                             temp_stracker.update(user_action=user_action)
@@ -161,6 +162,7 @@ class MCTS(object):
                         user_action, episode_over, dialog_status = self._running_user.next(sys_action)
                         reward = self.reward_function(dialog_status)
                         if episode_over:
+                            leaf_value += reward
                             break
                         else:
                             temp_stracker.update(user_action=user_action)
@@ -184,6 +186,7 @@ class MCTS(object):
                             state = temp_stracker.get_state_for_user()
                             user_action, episode_over, reward = self._running_user.next(state, [action_index])
                             if episode_over:
+                                leaf_value += reward
                                 break
                             else:
                                 temp_stracker.update(user_action=user_action)
@@ -192,6 +195,7 @@ class MCTS(object):
                             user_action, episode_over, dialog_status = self._running_user.next(sys_action)
                             reward = self.reward_function(dialog_status)
                             if episode_over:
+                                leaf_value += reward
                                 break
                             else:
                                 temp_stracker.update(user_action=user_action)
