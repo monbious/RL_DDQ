@@ -106,14 +106,17 @@ def smooth(a, WSZ):
     return np.concatenate((  start , out0, stop  ))
 
 if __name__ == "__main__":
-    path_list = ['DDQ_k1_run', 'DDQ_k20_run', 'DDQ_k50_run', 'DQNZ_k50_mcts_run']
+    # path_list = ['DDQ_k1_run', 'DDQ_k20_run', 'DDQ_k50_run', 'Test_DDQ_k20_mcts_run']
+    path_list = ['DDQ_k1_run', 'DDQ_k20_run', 'Test_DDQ_k20_mcts_run']
     # color_list = ['DeepSkyBlue', 'DarkCyan', 'LimeGreen', 'OrangeRed', 'Olive']
     # sub_color = ['LightSkyBlue', 'Cyan', 'LightGreen', 'LightCoral', 'DarkKhaki']
     # color_list = [[0.4660, 0.6740, 0.1880], [0.8500, 0.3250, 0.0980], [0, 0.4470, 0.7410], [0.3520, 0.0879, 0.8943]]
-    color_list = ['darkblue', 'darkorange', 'limegreen', 'purple']
-    sub_color = ['lightgreen', 'lightcoral', 'lightskyblue', 'lightsalmon']
-
-    labels = ['DQN', 'DDQ(20)', "DDQ(50)", 'DQNZ_mcts(50)']
+    # color_list = ['darkblue', 'darkorange', 'limegreen', 'purple']
+    # sub_color = ['lightgreen', 'lightcoral', 'lightskyblue', 'lightsalmon']
+    color_list = ['darkblue', 'darkorange', 'purple']
+    sub_color = ['lightgreen', 'lightcoral', 'lightsalmon']
+    # labels = ['DQN', 'DDQ(20)', "DDQ(50)", 'DDQ_mcts(20)']
+    labels = ['DQN', 'DDQ(20)', 'DDQ_mcts(20)']
     sr_mean = []
     sr_std = []
     turn_mean = []
