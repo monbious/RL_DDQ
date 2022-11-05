@@ -10,8 +10,7 @@ import numpy as np
 
 from .lstm import lstm
 from .bi_lstm import biLSTM
-
-import win2unix
+from .win2unix import win2unix
 
 
 class nlu:
