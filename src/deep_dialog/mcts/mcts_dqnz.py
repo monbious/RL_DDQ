@@ -252,7 +252,7 @@ class MCTS(object):
 
             self._playout(mcts_state_tracker, use_world_model)
         end_time = time.time()
-        print(f'mcts 用时{(end_time-start_time)*1000}ms')
+        # print(f'mcts 用时{(end_time-start_time)*1000}ms')
         # print(f'_root._children length{len(self._root._children.keys())}')
         mcts_state_tracker.initialize_episode()
         self._running_user.initialize_episode()

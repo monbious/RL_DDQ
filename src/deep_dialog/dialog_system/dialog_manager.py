@@ -97,12 +97,12 @@ class DialogManager:
 
         if self.params['mcts'] == 1 and self.use_world_model\
                 and self.state['turn'] > 5 \
-                and random.random() > 0.5:
-            # try:
-            self.agent_action, self.agent.action = self.mcts_action()
-            # except Exception as e:
-            #     print(e)
-            #     self.agent_action, _, _ = self.agent.state_to_action(self.state)
+                and random.random() > 0.2:
+            try:
+                self.agent_action, self.agent.action = self.mcts_action()
+            except Exception as e:
+                print(e)
+                self.agent_action, _, _ = self.agent.state_to_action(self.state)
         else:
             self.agent_action, _, _ = self.agent.state_to_action(self.state)
 
