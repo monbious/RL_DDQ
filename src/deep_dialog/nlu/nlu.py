@@ -48,7 +48,8 @@ class nlu:
         """ load the trained NLU model """
         try:
             model_params = pickle.load(open(model_path, 'rb'), encoding='iso-8859-1')
-        except:
+        except Exception as e:
+            print(e)
             model_params = pickle.load(open(win2unix(model_path), 'rb'), encoding='iso-8859-1')
         # model_params = pickle.load(open(model_path, 'rb'))
     
