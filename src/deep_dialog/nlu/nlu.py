@@ -11,6 +11,8 @@ import numpy as np
 from .lstm import lstm
 from .bi_lstm import biLSTM
 
+import win2unix
+
 
 class nlu:
     def __init__(self):
