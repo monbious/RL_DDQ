@@ -95,7 +95,7 @@ class DialogManager:
         self.state = self.state_tracker.get_state_for_agent()
         # print("当前对话轮数: ", self.state_tracker.turn_count) and self.use_world_model
 
-        if self.params['mcts'] == 1 and self.use_world_model\
+        if self.params['mcts'] == 1 \
                 and self.state['turn'] > 5 \
                 and random.random() > 0.2:
             try:
